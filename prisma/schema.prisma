@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Rol {
+  ADMIN
+  ASISTENTE
+}
+
+enum EstadoPasajero {
+  ACTIVO
+  INACTIVO
+}
+
+enum DiaSemana {
+  LUNES
+  MARTES
+  MIERCOLES
+  JUEVES
+  VIERNES
+  SABADO
+  DOMINGO
+}
+
+enum TipoViaje {
+  IDA
+  VUELTA
+  IDA_VUELTA
+}
+
+enum EstadoServicio {
+  ACTIVO
+  INACTIVO
+  CONFIRMADO
+  PENDIENTE
+  CANCELADO
+  REALIZADO
+}
+
+enum EstadoPago {
+  PENDIENTE
+  PARCIAL
+  PAGADO
+}
+
+// Perfil de aplicación vinculado 1 a 1 con auth.users de Supabase.
+// El id coincide con el id del usuario en Supabase Auth (no se autogenera acá).
+model Usuario {
+  id             String   @id @db.Uuid
+  nombre         String
+  email          String   @unique
+  rol            Rol      @default(ASISTENTE)
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  notasCreadas     Nota[]            @relation("NotaCreador")
+  notasRevisadas   Nota[]            @relation("NotaRevisor")
+  historialPrecios HistorialPrecio[]
+  historialCambios HistorialCambio[]
+
+  @@map("profiles")
+}
+
+model Barrio {
+  id        String     @id @default(cuid())
+  nombre    String     @unique
+  activo    Boolean    @default(true)
+  lat       Float?
+  lng       Float?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  servicios Servicio[]
+  puntos    PuntoRuta[]
+}
+
+model Pasajero {
+  id             String         @id @default(cuid())
+  nombre         String
+  telefono       String?
+  whatsapp       String?
+  email          String?
+  contactoExtra  String?
+  estado         EstadoPasajero @default(ACTIVO)
+  notasGenerales String?
+  archivedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  servicios      Servicio[]
+  notas          Nota[]
+
+  @@index([archivedAt])
+}
+
+model Servicio {
+  id              String         @id @default(cuid())
+  pasajero        Pasajero       @relation(fields: [pasajeroId], references: [id], onDelete: Cascade)
+  pasajeroId      String
+
+  diaSemana       DiaSemana
+
+  barrio          Barrio?        @relation(fields: [barrioId], references: [id])
+  barrioId        String?
+
+  direccion       String?
+  destino         String?
+
+  tipoViaje       TipoViaje      @default(IDA_VUELTA)
+  horaIda         String?
+  horaVuelta      String?
+
+  cantidadTramos  Int            @default(1)
+
+  estado          EstadoServicio @default(ACTIVO)
+
+  fechaInicio     DateTime?
+  fechaFin        DateTime?
+
+  montoAbonado    Float          @default(0)
+  estadoPago      EstadoPago     @default(PENDIENTE)
+  metodoPago      String?
+  montoPendiente  Float?
+  notasPago       String?
+
+  // Precio por tramo que este pasajero tiene contratado, independiente de la
+  // tarifa general vigente. Un aumento general de tarifa NO lo modifica.
+  precioContratado Float?
+  tramosComprados  Int?
+  tramosUtilizados Int?
+
+  notas           String?
+
+  archivedAt      DateTime?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  notasRel        Nota[]
+
+  @@index([diaSemana])
+  @@index([pasajeroId])
+  @@index([archivedAt])
+}
+
+model Nota {
+  id            String    @id @default(cuid())
+
+  pasajero      Pasajero  @relation(fields: [pasajeroId], references: [id], onDelete: Cascade)
+  pasajeroId    String
+
+  servicio      Servicio? @relation(fields: [servicioId], references: [id], onDelete: Cascade)
+  servicioId    String?
+
+  creador       Usuario   @relation("NotaCreador", fields: [creadorId], references: [id])
+  creadorId     String    @db.Uuid
+
+  contenido     String
+
+  creadaEn      DateTime  @default(now())
+
+  revisada      Boolean   @default(false)
+  revisadaEn    DateTime?
+  revisor       Usuario?  @relation("NotaRevisor", fields: [revisorId], references: [id])
+  revisorId     String?   @db.Uuid
+
+  @@index([servicioId])
+  @@index([pasajeroId])
+  @@index([revisada])
+}
+
+// --- Precios / tarifas ---
+
+model Tarifa {
+  id        String            @id @default(cuid())
+  nombre    String            @default("Tarifa general")
+  precio    Float
+  activa    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  historial HistorialPrecio[]
+}
+
+model HistorialPrecio {
+  id             String   @id @default(cuid())
+  tarifa         Tarifa   @relation(fields: [tarifaId], references: [id], onDelete: Cascade)
+  tarifaId       String
+  precioAnterior Float
+  precioNuevo    Float
+  porcentaje     Float?
+  usuario        Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId      String   @db.Uuid
+  creadoEn       DateTime @default(now())
+
+  @@index([tarifaId])
+}
+
+// --- Alertas de tramos bajos ---
+
+model ConfiguracionAlertas {
+  id          String   @id @default(cuid())
+  advertencia Int      @default(10)
+  alerta      Int      @default(5)
+  critica     Int      @default(2)
+  updatedAt   DateTime @updatedAt
+}
+
+// --- Historial de cambios (auditoría) ---
+
+model HistorialCambio {
+  id            String   @id @default(cuid())
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id])
+  usuarioId     String   @db.Uuid
+  entidad       String
+  entidadId     String
+  accion        String
+  campo         String?
+  valorAnterior String?
+  valorNuevo    String?
+  descripcion   String
+  creadoEn      DateTime @default(now())
+
+  @@index([entidad, entidadId])
+  @@index([usuarioId])
+  @@index([creadoEn])
+}
+
+// --- Copys / respuestas rápidas ---
+
+model CategoriaCopy {
+  id     String @id @default(cuid())
+  nombre String @unique
+  orden  Int    @default(0)
+
+  copies Copy[]
+}
+
+model Copy {
+  id          String         @id @default(cuid())
+  titulo      String
+  contenido   String
+  categoria   CategoriaCopy? @relation(fields: [categoriaId], references: [id])
+  categoriaId String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([categoriaId])
+}
+
+// --- Mapa / recorridos ---
+
+enum TipoPuntoRuta {
+  ORIGEN
+  DESTINO
+  OTRO
+}
+
+model PuntoRuta {
+  id        String        @id @default(cuid())
+  nombre    String
+  tipo      TipoPuntoRuta @default(OTRO)
+  lat       Float
+  lng       Float
+  barrio    Barrio?       @relation(fields: [barrioId], references: [id])
+  barrioId  String?
+  createdAt DateTime      @default(now())
+
+  recorridosOrigen  Recorrido[] @relation("RecorridoOrigen")
+  recorridosDestino Recorrido[] @relation("RecorridoDestino")
+}
+
+model Recorrido {
+  id          String     @id @default(cuid())
+  nombre      String
+  origen      PuntoRuta? @relation("RecorridoOrigen", fields: [origenId], references: [id])
+  origenId    String?
+  destino     PuntoRuta? @relation("RecorridoDestino", fields: [destinoId], references: [id])
+  destinoId   String?
+  puntosRuta  Json?
+  duracionMin Int?
+  distanciaKm Float?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}

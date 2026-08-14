@@ -1,0 +1,144 @@
+"use server";
+
+import { prisma } from "@/lib/prisma";
+import { requirePermiso } from "@/lib/auth-helpers";
+import { registrarCambio } from "@/lib/actions/historial";
+import { revalidatePath } from "next/cache";
+
+export async function obtenerTarifaActiva() {
+  await requirePermiso("tarifa:administrar");
+  let tarifa = await prisma.tarifa.findFirst({ where: { activa: true } });
+  if (!tarifa) {
+    tarifa = await prisma.tarifa.create({ data: { nombre: "Tarifa general", precio: 0 } });
+  }
+  return tarifa;
+}
+
+export async function listarHistorialPrecios() {
+  await requirePermiso("tarifa:administrar");
+  return prisma.historialPrecio.findMany({
+    include: { usuario: true, tarifa: true },
+    orderBy: { creadoEn: "desc" },
+    take: 200,
+  });
+}
+
+/**
+ * Actualiza la tarifa general por un valor fijo nuevo o por un porcentaje de aumento.
+ * NO toca el precio contratado de los pasajeros existentes.
+ */
+export async function actualizarTarifa(input: { precioNuevo?: number; porcentaje?: number }) {
+  const usuario = await requirePermiso("tarifa:administrar");
+
+  const tarifa = await obtenerTarifaActivaInterna();
+  const precioAnterior = tarifa.precio;
+
+  let precioNuevo: number;
+  let porcentaje: number | null = null;
+
+  if (input.porcentaje != null) {
+    porcentaje = input.porcentaje;
+    precioNuevo = Math.round(precioAnterior * (1 + input.porcentaje / 100) * 100) / 100;
+  } else if (input.precioNuevo != null) {
+    precioNuevo = input.precioNuevo;
+    if (precioAnterior > 0) {
+      porcentaje = Math.round(((precioNuevo - precioAnterior) / precioAnterior) * 10000) / 100;
+    }
+  } else {
+    throw new Error("Indicá un precio nuevo o un porcentaje");
+  }
+
+  const actualizada = await prisma.tarifa.update({
+    where: { id: tarifa.id },
+    data: { precio: precioNuevo },
+  });
+
+  await prisma.historialPrecio.create({
+    data: {
+      tarifaId: tarifa.id,
+      precioAnterior,
+      precioNuevo,
+      porcentaje: porcentaje ?? undefined,
+      usuarioId: usuario.id,
+    },
+  });
+
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "Tarifa",
+    entidadId: tarifa.id,
+    accion: "editar",
+    campo: "precio",
+    valorAnterior: String(precioAnterior),
+    valorNuevo: String(precioNuevo),
+    descripcion: `${usuario.nombre} actualizó la tarifa general de $${precioAnterior} a $${precioNuevo}${
+      porcentaje != null ? ` (${porcentaje > 0 ? "+" : ""}${porcentaje}%)` : ""
+    }`,
+  });
+
+  revalidatePath("/precios");
+  return actualizada;
+}
+
+/**
+ * Acción explícita y separada: aplica el precio contratado nuevo a los
+ * servicios activos que el usuario elija. Nunca se llama automáticamente
+ * desde actualizarTarifa.
+ */
+export async function aplicarPrecioAContratados(servicioIds: string[], precio: number) {
+  const usuario = await requirePermiso("tarifa:administrar");
+
+  const resultado = await prisma.servicio.updateMany({
+    where: { id: { in: servicioIds } },
+    data: { precioContratado: precio },
+  });
+
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "Servicio",
+    entidadId: servicioIds.join(","),
+    accion: "editar",
+    campo: "precioContratado",
+    valorNuevo: String(precio),
+    descripcion: `${usuario.nombre} aplicó el precio contratado $${precio} a ${resultado.count} servicio(s)`,
+  });
+
+  revalidatePath("/precios");
+  revalidatePath("/pasajeros");
+  return resultado;
+}
+
+/**
+ * Aplica un precio contratado a TODOS los servicios activos (no archivados).
+ * Acción explícita, separada de la actualización de la tarifa general.
+ */
+export async function aplicarPrecioATodosActivos(precio: number) {
+  const usuario = await requirePermiso("tarifa:administrar");
+
+  const resultado = await prisma.servicio.updateMany({
+    where: { archivedAt: null, estado: { not: "INACTIVO" } },
+    data: { precioContratado: precio },
+  });
+
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "Servicio",
+    entidadId: "masivo",
+    accion: "editar",
+    campo: "precioContratado",
+    valorNuevo: String(precio),
+    descripcion: `${usuario.nombre} aplicó el precio contratado $${precio} a todos los servicios activos (${resultado.count})`,
+  });
+
+  revalidatePath("/precios");
+  revalidatePath("/pasajeros");
+  return resultado;
+}
+
+async function obtenerTarifaActivaInterna() {
+  let tarifa = await prisma.tarifa.findFirst({ where: { activa: true } });
+  if (!tarifa) {
+    tarifa = await prisma.tarifa.create({ data: { nombre: "Tarifa general", precio: 0 } });
+  }
+  return tarifa;
+}

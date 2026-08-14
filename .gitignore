@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# database (SQLite, ya no se usa - los datos viven en Supabase)
+/prisma/dev.db*
 
 # vercel
 .vercel
