@@ -57,7 +57,18 @@ export default function SetPasswordPage() {
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+
+    // Justo después de crear/confirmar la cuenta, la validación del token
+    // puede tardar unos segundos en propagarse del lado de Supabase.
+    // Reintentamos un par de veces antes de mostrar un error.
+    let updateError = null;
+    for (let intento = 0; intento < 3; intento++) {
+      const { error: err } = await supabase.auth.updateUser({ password });
+      updateError = err;
+      if (!err) break;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+
     setLoading(false);
 
     if (updateError) {
