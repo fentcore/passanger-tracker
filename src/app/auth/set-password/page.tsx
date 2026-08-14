@@ -15,37 +15,40 @@ import {
 } from "@/components/ui/card";
 import { Bus } from "lucide-react";
 
+function leerTokensDeHash(): { accessToken: string; refreshToken: string } | null {
+  if (typeof window === "undefined") return null;
+  const hash = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  const params = new URLSearchParams(hash);
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken || !refreshToken) return null;
+  return { accessToken, refreshToken };
+}
+
 export default function SetPasswordPage() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [checking, setChecking] = useState(true);
-  const [sesionValida, setSesionValida] = useState(false);
+  const [tokens, setTokens] = useState<{ accessToken: string; refreshToken: string } | null>(
+    null
+  );
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSesionValida(!!session);
-      setChecking(false);
-    });
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setSesionValida(true);
-        setChecking(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase]);
+    setTokens(leerTokensDeHash());
+    setChecking(false);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!tokens) return;
 
     if (password.length < 8) {
       setError("La contraseña tiene que tener al menos 8 caracteres.");
@@ -58,25 +61,52 @@ export default function SetPasswordPage() {
 
     setLoading(true);
 
-    // Justo después de crear/confirmar la cuenta, la validación del token
-    // puede tardar unos segundos en propagarse del lado de Supabase.
-    // Reintentamos un par de veces antes de mostrar un error.
-    let updateError = null;
-    for (let intento = 0; intento < 7; intento++) {
-      const { error: err } = await supabase.auth.updateUser({ password });
-      updateError = err;
-      if (!err) break;
+    // Usamos el access_token del enlace directamente en vez de dejar que el
+    // SDK lo refresque: justo después de crear/confirmar la cuenta, un token
+    // recién refrescado puede tardar unos segundos en propagarse del lado de
+    // Supabase y devolver "User from sub claim in JWT does not exist".
+    // Reintentamos por las dudas de todos modos.
+    let ultimoError: string | null = null;
+    let ok = false;
+
+    for (let intento = 0; intento < 6; intento++) {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            Authorization: `Bearer ${tokens.accessToken}`,
+          },
+          body: JSON.stringify({ password }),
+        }
+      );
+
+      if (res.ok) {
+        ok = true;
+        break;
+      }
+
+      const body = await res.json().catch(() => null);
+      ultimoError = body?.msg ?? body?.message ?? `Error ${res.status}`;
       await new Promise((r) => setTimeout(r, 2000));
     }
 
-    setLoading(false);
-
-    if (updateError) {
-      console.error("updateUser error:", updateError);
-      setError(`No se pudo guardar la contraseña: ${updateError.message}`);
+    if (!ok) {
+      setLoading(false);
+      console.error("updateUser error:", ultimoError);
+      setError(`No se pudo guardar la contraseña: ${ultimoError}`);
       return;
     }
 
+    // Ya se guardó la contraseña; ahora sí establecemos la sesión de la app.
+    await supabase.auth.setSession({
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    });
+
+    setLoading(false);
     router.push("/");
     router.refresh();
   }
@@ -94,7 +124,7 @@ export default function SetPasswordPage() {
         <CardContent>
           {checking ? (
             <p className="text-center text-sm text-muted-foreground">Verificando enlace...</p>
-          ) : !sesionValida ? (
+          ) : !tokens ? (
             <p className="text-center text-sm text-destructive">
               Este enlace no es válido o ya venció. Pedí que te generen uno nuevo.
             </p>
