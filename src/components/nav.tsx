@@ -12,7 +12,6 @@ import {
   DollarSign,
   History,
   Archive,
-  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,7 +30,6 @@ const LINKS_PRINCIPALES = [
 ];
 
 const LINKS_MAS = [
-  { href: "/importar", label: "Importar tramos", icon: Upload },
   { href: "/copys", label: "Copys", icon: MessageSquareText },
   { href: "/mapa", label: "Mapa", icon: Map },
   { href: "/precios", label: "Precios y tarifas", icon: DollarSign },

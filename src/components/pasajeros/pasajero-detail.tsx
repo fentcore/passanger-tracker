@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Pencil,
-  Phone,
   MessageCircle,
   Mail,
   Info,
@@ -173,11 +172,6 @@ export function PasajeroDetail({
           </div>
 
           <div className="flex flex-col gap-1.5 text-sm">
-            {pasajero.telefono && (
-              <span className="flex items-center gap-2">
-                <Phone className="size-4 text-muted-foreground" /> {pasajero.telefono}
-              </span>
-            )}
             {pasajero.whatsapp && (
               <span className="flex items-center gap-2">
                 <MessageCircle className="size-4 text-muted-foreground" /> {pasajero.whatsapp}

@@ -40,7 +40,11 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
     }
     startTransition(async () => {
       try {
-        await crearBarrio({ nombre: nombreNuevo });
+        const resultado = await crearBarrio({ nombre: nombreNuevo });
+        if (resultado && "error" in resultado) {
+          setError(resultado.error);
+          return;
+        }
         toast.success("Barrio creado");
         setNombreNuevo("");
         setCreateOpen(false);
@@ -60,7 +64,11 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
     }
     startTransition(async () => {
       try {
-        await actualizarBarrio(editando.id, { nombre: nombreEdit });
+        const resultado = await actualizarBarrio(editando.id, { nombre: nombreEdit });
+        if (resultado && "error" in resultado) {
+          setError(resultado.error);
+          return;
+        }
         toast.success("Barrio actualizado");
         setEditando(null);
         router.refresh();

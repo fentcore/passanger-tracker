@@ -84,25 +84,14 @@ export function EditarPasajeroDialog({
               onChange={(e) => set("nombre", e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Teléfono</Label>
-              <Input
-                className="h-11"
-                value={draft.telefono}
-                onChange={(e) => set("telefono", e.target.value)}
-                inputMode="tel"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>WhatsApp</Label>
-              <Input
-                className="h-11"
-                value={draft.whatsapp}
-                onChange={(e) => set("whatsapp", e.target.value)}
-                inputMode="tel"
-              />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>WhatsApp</Label>
+            <Input
+              className="h-11"
+              value={draft.whatsapp}
+              onChange={(e) => set("whatsapp", e.target.value)}
+              inputMode="tel"
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Email</Label>

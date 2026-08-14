@@ -123,25 +123,14 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
               autoFocus
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>Teléfono</Label>
-              <Input
-                className="h-11"
-                value={pasajero.telefono}
-                onChange={(e) => setPasajeroField("telefono", e.target.value)}
-                inputMode="tel"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>WhatsApp</Label>
-              <Input
-                className="h-11"
-                value={pasajero.whatsapp}
-                onChange={(e) => setPasajeroField("whatsapp", e.target.value)}
-                inputMode="tel"
-              />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>WhatsApp</Label>
+            <Input
+              className="h-11"
+              value={pasajero.whatsapp}
+              onChange={(e) => setPasajeroField("whatsapp", e.target.value)}
+              inputMode="tel"
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Email</Label>

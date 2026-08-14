@@ -5,6 +5,7 @@ import { requirePermiso } from "@/lib/auth-helpers";
 import { barrioSchema } from "@/lib/validators";
 import { registrarCambio } from "@/lib/actions/historial";
 import { revalidatePath } from "next/cache";
+import { esConflictoDeUnicidad, mensajeConflicto } from "@/lib/prisma-errors";
 
 export async function listarBarrios(soloActivos = false) {
   return prisma.barrio.findMany({
@@ -16,36 +17,50 @@ export async function listarBarrios(soloActivos = false) {
 export async function crearBarrio(input: unknown) {
   const usuario = await requirePermiso("barrio:administrar");
   const data = barrioSchema.parse(input);
-  const barrio = await prisma.barrio.create({ data: { nombre: data.nombre } });
-  await registrarCambio({
-    usuarioId: usuario.id,
-    entidad: "Barrio",
-    entidadId: barrio.id,
-    accion: "crear",
-    descripcion: `${usuario.nombre} creó el barrio "${barrio.nombre}"`,
-  });
-  revalidatePath("/barrios");
-  revalidatePath("/");
-  return barrio;
+  try {
+    const barrio = await prisma.barrio.create({ data: { nombre: data.nombre } });
+    await registrarCambio({
+      usuarioId: usuario.id,
+      entidad: "Barrio",
+      entidadId: barrio.id,
+      accion: "crear",
+      descripcion: `${usuario.nombre} creó el barrio "${barrio.nombre}"`,
+    });
+    revalidatePath("/barrios");
+    revalidatePath("/");
+    return barrio;
+  } catch (e) {
+    if (esConflictoDeUnicidad(e)) {
+      return { error: mensajeConflicto(e, "un barrio") };
+    }
+    throw e;
+  }
 }
 
 export async function actualizarBarrio(id: string, input: unknown) {
   const usuario = await requirePermiso("barrio:administrar");
   const data = barrioSchema.parse(input);
-  const barrio = await prisma.barrio.update({
-    where: { id },
-    data: { nombre: data.nombre },
-  });
-  await registrarCambio({
-    usuarioId: usuario.id,
-    entidad: "Barrio",
-    entidadId: barrio.id,
-    accion: "editar",
-    descripcion: `${usuario.nombre} renombró un barrio a "${barrio.nombre}"`,
-  });
-  revalidatePath("/barrios");
-  revalidatePath("/");
-  return barrio;
+  try {
+    const barrio = await prisma.barrio.update({
+      where: { id },
+      data: { nombre: data.nombre },
+    });
+    await registrarCambio({
+      usuarioId: usuario.id,
+      entidad: "Barrio",
+      entidadId: barrio.id,
+      accion: "editar",
+      descripcion: `${usuario.nombre} renombró un barrio a "${barrio.nombre}"`,
+    });
+    revalidatePath("/barrios");
+    revalidatePath("/");
+    return barrio;
+  } catch (e) {
+    if (esConflictoDeUnicidad(e)) {
+      return { error: mensajeConflicto(e, "un barrio") };
+    }
+    throw e;
+  }
 }
 
 export async function cambiarEstadoBarrio(id: string, activo: boolean) {

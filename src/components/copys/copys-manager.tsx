@@ -70,6 +70,7 @@ export function CopysManager({
 
   const [catOpen, setCatOpen] = useState(false);
   const [catNombre, setCatNombre] = useState("");
+  const [catError, setCatError] = useState<string | null>(null);
 
   const [editando, setEditando] = useState<CopyItem | null>(null);
   const [editTitulo, setEditTitulo] = useState("");
@@ -98,15 +99,20 @@ export function CopysManager({
 
   function handleCrearCategoria() {
     if (!catNombre.trim()) return;
+    setCatError(null);
     startTransition(async () => {
       try {
-        await crearCategoriaCopy({ nombre: catNombre });
+        const resultado = await crearCategoriaCopy({ nombre: catNombre });
+        if (resultado && "error" in resultado) {
+          setCatError(resultado.error);
+          return;
+        }
         toast.success("Categoría creada");
         setCatNombre("");
         setCatOpen(false);
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "No se pudo crear");
+        setCatError(e instanceof Error ? e.message : "No se pudo crear");
       }
     });
   }
@@ -199,6 +205,7 @@ export function CopysManager({
                 onChange={(e) => setCatNombre(e.target.value)}
                 autoFocus
               />
+              {catError && <p className="text-sm text-destructive">{catError}</p>}
               <DialogFooter>
                 <Button className="h-11 w-full" disabled={pending} onClick={handleCrearCategoria}>
                   Crear

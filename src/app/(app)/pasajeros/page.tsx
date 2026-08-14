@@ -6,7 +6,7 @@ import { ListaFiltros } from "@/components/pasajeros/lista-filtros";
 import { NuevoPasajeroFab } from "@/components/nuevo-pasajero-fab";
 import { Badge } from "@/components/ui/badge";
 import { DIA_LABEL_CORTO, DIAS_SEMANA, DiaSemana } from "@/lib/constants";
-import { Phone, Users2, AlertTriangle } from "lucide-react";
+import { MessageCircle, Users2, AlertTriangle } from "lucide-react";
 import { nivelAlertaTramos, NIVEL_ALERTA_COLOR, NIVEL_ALERTA_LABEL } from "@/lib/alertas";
 
 export default async function PasajerosPage({
@@ -19,7 +19,7 @@ export default async function PasajerosPage({
     listarPasajeros({
       busqueda: sp.q,
       estado: sp.estado === "ACTIVO" || sp.estado === "INACTIVO" ? sp.estado : undefined,
-      telefono: sp.telefono,
+      whatsapp: sp.whatsapp,
       barrioId: sp.barrioId,
       tipoViaje: sp.tipoViaje,
       estadoPago: sp.estadoPago,
@@ -72,10 +72,10 @@ export default async function PasajerosPage({
                 <div className="min-w-0">
                   <p className="font-semibold truncate">{p.nombre}</p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    {p.telefono && (
+                    {p.whatsapp && (
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Phone className="size-3" />
-                        {p.telefono}
+                        <MessageCircle className="size-3" />
+                        {p.whatsapp}
                       </span>
                     )}
                     {dias.length > 0 && (

@@ -5,6 +5,7 @@ import { requirePermiso } from "@/lib/auth-helpers";
 import { registrarCambio } from "@/lib/actions/historial";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { esConflictoDeUnicidad, mensajeConflicto } from "@/lib/prisma-errors";
 
 const copySchema = z.object({
   titulo: z.string().trim().min(1, "El título es obligatorio"),
@@ -43,16 +44,23 @@ export async function listarCopys(opts?: { categoriaId?: string; busqueda?: stri
 export async function crearCategoriaCopy(input: unknown) {
   const usuario = await requirePermiso("copy:administrar");
   const data = categoriaSchema.parse(input);
-  const categoria = await prisma.categoriaCopy.create({ data: { nombre: data.nombre } });
-  await registrarCambio({
-    usuarioId: usuario.id,
-    entidad: "CategoriaCopy",
-    entidadId: categoria.id,
-    accion: "crear",
-    descripcion: `${usuario.nombre} creó la categoría de copys "${categoria.nombre}"`,
-  });
-  revalidatePath("/copys");
-  return categoria;
+  try {
+    const categoria = await prisma.categoriaCopy.create({ data: { nombre: data.nombre } });
+    await registrarCambio({
+      usuarioId: usuario.id,
+      entidad: "CategoriaCopy",
+      entidadId: categoria.id,
+      accion: "crear",
+      descripcion: `${usuario.nombre} creó la categoría de copys "${categoria.nombre}"`,
+    });
+    revalidatePath("/copys");
+    return categoria;
+  } catch (e) {
+    if (esConflictoDeUnicidad(e)) {
+      return { error: mensajeConflicto(e, "una categoría") };
+    }
+    throw e;
+  }
 }
 
 export async function crearCopy(input: unknown) {

@@ -290,6 +290,18 @@ export function MapaView({
         )}
       </div>
 
+      {modo !== "ninguno" && (
+        <div className="flex items-center gap-2 rounded-xl bg-primary/10 px-3.5 py-2.5 text-sm font-medium text-primary">
+          <MapPin className="size-4 shrink-0" />
+          {modo === "barrio" && "Tocá el mapa en el lugar del barrio que querés marcar"}
+          {modo === "punto" && "Tocá el mapa en el lugar donde querés marcar el punto"}
+          {modo === "recorrido" &&
+            (rutaWaypoints.length === 0
+              ? "Tocá el mapa para empezar a marcar el recorrido"
+              : `Seguí tocando el mapa para agregar puntos, o tocá "Terminar" cuando termines`)}
+        </div>
+      )}
+
       <div className="h-[50vh] min-h-[320px] w-full overflow-hidden rounded-2xl border">
         <MapContainer
           center={[centro.lat, centro.lng]}

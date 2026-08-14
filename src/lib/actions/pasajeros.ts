@@ -205,7 +205,7 @@ export async function obtenerPasajero(id: string) {
 export async function listarPasajeros(opts?: {
   busqueda?: string;
   estado?: "ACTIVO" | "INACTIVO";
-  telefono?: string;
+  whatsapp?: string;
   barrioId?: string;
   tipoViaje?: string;
   estadoPago?: string;
@@ -216,7 +216,7 @@ export async function listarPasajeros(opts?: {
       archivedAt: null,
       ...(opts?.estado ? { estado: opts.estado } : {}),
       ...(opts?.busqueda ? { nombre: { contains: opts.busqueda } } : {}),
-      ...(opts?.telefono ? { telefono: { contains: opts.telefono } } : {}),
+      ...(opts?.whatsapp ? { whatsapp: { contains: opts.whatsapp } } : {}),
       ...(opts?.barrioId || opts?.tipoViaje || opts?.estadoPago
         ? {
             servicios: {

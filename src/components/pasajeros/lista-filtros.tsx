@@ -35,7 +35,7 @@ export function ListaFiltros({ barrios = [] }: { barrios?: Barrio[] }) {
 
   const busqueda = searchParams.get("q") ?? "";
   const estado = searchParams.get("estado") ?? "";
-  const telefono = searchParams.get("telefono") ?? "";
+  const whatsapp = searchParams.get("whatsapp") ?? "";
   const barrioId = searchParams.get("barrioId") ?? "";
   const tipoViaje = searchParams.get("tipoViaje") ?? "";
   const estadoPago = searchParams.get("estadoPago") ?? "";
@@ -47,7 +47,7 @@ export function ListaFiltros({ barrios = [] }: { barrios?: Barrio[] }) {
     startTransition(() => router.push(`${pathname}?${params.toString()}`));
   }
 
-  const secundariosActivos = [telefono, barrioId, tipoViaje, estadoPago].filter(Boolean).length;
+  const secundariosActivos = [whatsapp, barrioId, tipoViaje, estadoPago].filter(Boolean).length;
 
   const barrioItems = { TODOS: "Todos", ...Object.fromEntries(barrios.map((b) => [b.id, b.nombre])) };
   const tipoItems = { TODOS: "Todos", ...TIPO_VIAJE_LABEL };
@@ -84,11 +84,11 @@ export function ListaFiltros({ barrios = [] }: { barrios?: Barrio[] }) {
             </SheetHeader>
             <div className="flex flex-col gap-4 px-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Teléfono</label>
+                <label className="text-sm font-medium">WhatsApp</label>
                 <Input
-                  defaultValue={telefono}
-                  onChange={(e) => setParam("telefono", e.target.value)}
-                  placeholder="Buscar por teléfono..."
+                  defaultValue={whatsapp}
+                  onChange={(e) => setParam("whatsapp", e.target.value)}
+                  placeholder="Buscar por WhatsApp..."
                   className="h-11"
                 />
               </div>
@@ -154,7 +154,7 @@ export function ListaFiltros({ barrios = [] }: { barrios?: Barrio[] }) {
               <Button
                 variant="ghost"
                 onClick={() => {
-                  setParam("telefono", null);
+                  setParam("whatsapp", null);
                   setParam("barrioId", null);
                   setParam("tipoViaje", null);
                   setParam("estadoPago", null);
