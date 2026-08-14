@@ -62,11 +62,11 @@ export default function SetPasswordPage() {
     // puede tardar unos segundos en propagarse del lado de Supabase.
     // Reintentamos un par de veces antes de mostrar un error.
     let updateError = null;
-    for (let intento = 0; intento < 3; intento++) {
+    for (let intento = 0; intento < 7; intento++) {
       const { error: err } = await supabase.auth.updateUser({ password });
       updateError = err;
       if (!err) break;
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 2000));
     }
 
     setLoading(false);
@@ -127,7 +127,7 @@ export default function SetPasswordPage() {
               </div>
               {error && <p className="text-sm text-destructive text-center">{error}</p>}
               <Button type="submit" disabled={loading} className="h-12 text-base mt-1">
-                {loading ? "Guardando..." : "Guardar y entrar"}
+                {loading ? "Guardando... puede tardar unos segundos" : "Guardar y entrar"}
               </Button>
             </form>
           )}
