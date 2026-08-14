@@ -17,6 +17,7 @@ import { Bus } from "lucide-react";
 
 export default function SetPasswordPage() {
   const router = useRouter();
+  const [supabase] = useState(() => createClient());
   const [checking, setChecking] = useState(true);
   const [sesionValida, setSesionValida] = useState(false);
   const [password, setPassword] = useState("");
@@ -25,12 +26,22 @@ export default function SetPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data }) => {
-      setSesionValida(!!data.session);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSesionValida(!!session);
       setChecking(false);
     });
-  }, []);
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        setSesionValida(true);
+        setChecking(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,12 +57,12 @@ export default function SetPasswordPage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
     const { error: updateError } = await supabase.auth.updateUser({ password });
     setLoading(false);
 
     if (updateError) {
-      setError("No se pudo guardar la contraseña. Probá pedir un nuevo enlace.");
+      console.error("updateUser error:", updateError);
+      setError(`No se pudo guardar la contraseña: ${updateError.message}`);
       return;
     }
 
