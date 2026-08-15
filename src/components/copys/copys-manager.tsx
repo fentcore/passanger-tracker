@@ -36,6 +36,7 @@ import {
   Copy as CopyIcon,
   Plus,
   Pencil,
+  PencilLine,
   Trash2,
   Search,
   MessageSquareText,
@@ -52,6 +53,7 @@ import {
   actualizarCopy,
   eliminarCopy,
 } from "@/lib/actions/copys";
+import { coincideBusqueda } from "@/lib/busqueda";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -121,14 +123,15 @@ export function CopysManager({
   const [editContenido, setEditContenido] = useState("");
   const [editCategoria, setEditCategoria] = useState("");
 
+  const [personalizando, setPersonalizando] = useState<CopyItem | null>(null);
+  const [textoPersonalizado, setTextoPersonalizado] = useState("");
+
   const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
+    const q = busqueda.trim();
     return copys.filter((c) => {
       if (categoriaActiva !== "TODAS" && c.categoriaId !== categoriaActiva) return false;
       if (!q) return true;
-      return (
-        c.titulo.toLowerCase().includes(q) || c.contenido.toLowerCase().includes(q)
-      );
+      return coincideBusqueda(`${c.titulo} ${c.contenido}`, q);
     });
   }, [copys, busqueda, categoriaActiva]);
 
@@ -139,6 +142,16 @@ export function CopysManager({
     } catch {
       toast.error("No se pudo copiar");
     }
+  }
+
+  function abrirPersonalizar(c: CopyItem) {
+    setPersonalizando(c);
+    setTextoPersonalizado(c.contenido);
+  }
+
+  async function copiarPersonalizado() {
+    await copiar(textoPersonalizado);
+    setPersonalizando(null);
   }
 
   function abrirNuevaCategoria() {
@@ -497,15 +510,26 @@ export function CopysManager({
               >
                 {c.contenido}
               </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="self-start h-9 rounded-full gap-1.5"
-                onClick={() => copiar(c.contenido)}
-              >
-                <CopyIcon className="size-4" />
-                Copiar
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 rounded-full gap-1.5"
+                  onClick={() => copiar(c.contenido)}
+                >
+                  <CopyIcon className="size-4" />
+                  Copiar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 rounded-full gap-1.5"
+                  onClick={() => abrirPersonalizar(c)}
+                >
+                  <PencilLine className="size-4" />
+                  Editar y copiar
+                </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -553,6 +577,29 @@ export function CopysManager({
           <DialogFooter>
             <Button className="h-11 w-full" disabled={pending} onClick={handleGuardarEdicion}>
               Guardar cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!personalizando} onOpenChange={(v) => !v && setPersonalizando(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar antes de copiar</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Cambiá lo que necesites solo para esta vez — el copy original ({personalizando?.titulo})
+            no se modifica.
+          </p>
+          <Textarea
+            className="min-h-[140px]"
+            value={textoPersonalizado}
+            onChange={(e) => setTextoPersonalizado(e.target.value)}
+          />
+          <DialogFooter>
+            <Button className="h-11 w-full gap-1.5" onClick={copiarPersonalizado}>
+              <CopyIcon className="size-4" />
+              Copiar
             </Button>
           </DialogFooter>
         </DialogContent>
