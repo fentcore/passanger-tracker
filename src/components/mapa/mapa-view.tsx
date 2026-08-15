@@ -471,9 +471,8 @@ export function MapaView({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-[1fr_340px]">
-        <div className="flex flex-col gap-4">
-          <div className="isolate h-[45vh] min-h-[280px] w-full overflow-hidden rounded-2xl border">
+      <div className="flex flex-col gap-4">
+        <div className="isolate h-[45vh] min-h-[280px] w-full overflow-hidden rounded-2xl border">
             <MapContainer
               center={[centro.lat, centro.lng]}
               zoom={13}
@@ -683,7 +682,7 @@ export function MapaView({
           {recorridos.length === 0 ? (
             <p className="px-1 text-sm text-muted-foreground">Todavía no guardaste recorridos.</p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               {recorridos.map((r) => {
                 const stops = (r.puntosRuta as Parada[] | null) ?? [];
                 return (
@@ -775,7 +774,6 @@ export function MapaView({
             </div>
           )}
         </div>
-      </div>
 
       <Dialog open={!!barrioForm} onOpenChange={(v) => !v && setBarrioForm(null)}>
         <DialogContent className="max-w-sm">
