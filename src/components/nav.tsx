@@ -40,6 +40,8 @@ const LINKS_MAS = [
 
 const TODOS_LOS_LINKS = [...LINKS_PRINCIPALES, ...LINKS_MAS];
 
+const HREFS_SECUNDARIOS = ["/historial", "/archivados"];
+
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname.startsWith(href);
@@ -120,21 +122,23 @@ export function BottomNav() {
 export function TopNav() {
   const pathname = usePathname();
   return (
-    <nav className="hidden md:flex flex-wrap items-center gap-1">
+    <nav className="hidden md:flex flex-wrap items-center gap-1.5">
       {TODOS_LOS_LINKS.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
+        const secundario = HREFS_SECUNDARIOS.includes(href);
         return (
           <Link
             key={href}
             href={href}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+              "flex shrink-0 items-center gap-2 rounded-full font-medium transition-colors",
+              secundario ? "px-2.5 py-1 text-xs" : "px-4 py-2.5 text-base",
               active
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
           >
-            <Icon className="size-4" />
+            <Icon className={secundario ? "size-3.5" : "size-5"} />
             {label}
           </Link>
         );

@@ -441,14 +441,17 @@ export function CopysManager({
           <p className="font-medium">No hay copys para este filtro</p>
         </div>
       ) : (
-        <div className={vista === "lista" ? "flex flex-col gap-2.5" : "grid grid-cols-2 gap-2.5"}>
+        <div
+          className={
+            vista === "lista"
+              ? "flex flex-col gap-2.5"
+              : "grid grid-cols-2 items-start gap-2.5"
+          }
+        >
           {filtrados.map((c) => (
             <div
               key={c.id}
-              className={cn(
-                "rounded-2xl border bg-card p-4 shadow-sm flex flex-col gap-2",
-                vista === "grilla" && "aspect-square"
-              )}
+              className="rounded-2xl border bg-card p-4 shadow-sm flex flex-col gap-2"
               style={c.categoria?.color ? { borderColor: c.categoria.color } : undefined}
             >
               <div className="flex items-start justify-between gap-2">
@@ -489,7 +492,7 @@ export function CopysManager({
               <p
                 className={cn(
                   "text-sm text-muted-foreground whitespace-pre-wrap",
-                  vista === "grilla" ? "line-clamp-4 flex-1" : "line-clamp-3"
+                  vista === "grilla" ? "line-clamp-6" : "line-clamp-3"
                 )}
               >
                 {c.contenido}
