@@ -28,40 +28,90 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 type Barrio = { id: string; nombre: string };
+type DiasRecord = Record<DiaSemana, ServicioDraft | null>;
+type OtroPasajero = { nombre: string; dias: DiasRecord };
+
+function diasVacios(): DiasRecord {
+  return Object.fromEntries(DIAS_SEMANA.map((d) => [d, null])) as DiasRecord;
+}
+
+function serviciosDesdeD(dias: DiasRecord) {
+  return DIAS_SEMANA.filter((d) => dias[d] !== null).map((d) => {
+    const s = dias[d]!;
+    return {
+      diaSemana: s.diaSemana,
+      tipoViaje: s.tipoViaje,
+      horaIda: s.horaIda,
+      horaVuelta: s.horaVuelta,
+      barrioId: s.barrioId,
+      direccion: s.direccion,
+      destino: s.destino,
+      estado: s.estado,
+      fechaInicio: s.fechaInicio,
+      fechaFin: s.fechaFin,
+      montoAbonado: s.montoAbonado === "" ? undefined : Number(s.montoAbonado),
+      estadoPago: s.estadoPago,
+      metodoPago: s.metodoPago,
+      montoPendiente: s.montoPendiente === "" ? undefined : Number(s.montoPendiente),
+      notasPago: s.notasPago,
+      notas: s.notas,
+    };
+  });
+}
 
 export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [pasajero, setPasajero] = useState<PasajeroDraft>(pasajeroDraftVacio());
-  const [dias, setDias] = useState<Record<DiaSemana, ServicioDraft | null>>(
-    () =>
-      Object.fromEntries(DIAS_SEMANA.map((d) => [d, null])) as Record<
-        DiaSemana,
-        ServicioDraft | null
-      >
-  );
+  const [diasPrincipal, setDiasPrincipal] = useState<DiasRecord>(diasVacios);
+  const [otros, setOtros] = useState<OtroPasajero[]>([]);
+  const [pasajeroActivo, setPasajeroActivo] = useState<number>(-1);
   const [tabActivo, setTabActivo] = useState<DiaSemana | null>(null);
   const [tramosIniciales, setTramosIniciales] = useState("");
-  const [otrosPasajeros, setOtrosPasajeros] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const diasSeleccionados = DIAS_SEMANA.filter((d) => dias[d] !== null);
+  const diasActuales = pasajeroActivo === -1 ? diasPrincipal : otros[pasajeroActivo].dias;
+  const diasSeleccionados = DIAS_SEMANA.filter((d) => diasActuales[d] !== null);
+
+  function setDiasActuales(next: DiasRecord) {
+    if (pasajeroActivo === -1) {
+      setDiasPrincipal(next);
+    } else {
+      setOtros((prev) => prev.map((o, i) => (i === pasajeroActivo ? { ...o, dias: next } : o)));
+    }
+  }
+
+  function elegirPasajeroActivo(i: number) {
+    setPasajeroActivo(i);
+    setTabActivo(null);
+  }
 
   function toggleDia(dia: DiaSemana, checked: boolean) {
-    setDias((prev) => {
-      const next = { ...prev, [dia]: checked ? servicioDraftVacio(dia) : null };
-      return next;
-    });
+    setDiasActuales({ ...diasActuales, [dia]: checked ? servicioDraftVacio(dia) : null });
     if (checked) setTabActivo(dia);
     else if (tabActivo === dia) setTabActivo(null);
   }
 
   function actualizarServicio(dia: DiaSemana, v: ServicioDraft) {
-    setDias((prev) => ({ ...prev, [dia]: v }));
+    setDiasActuales({ ...diasActuales, [dia]: v });
   }
 
   function setPasajeroField<K extends keyof PasajeroDraft>(key: K, v: PasajeroDraft[K]) {
     setPasajero((prev) => ({ ...prev, [key]: v }));
+  }
+
+  function agregarOtroPasajero() {
+    setOtros((prev) => [...prev, { nombre: "", dias: diasVacios() }]);
+  }
+
+  function actualizarNombreOtro(i: number, valor: string) {
+    setOtros((prev) => prev.map((o, idx) => (idx === i ? { ...o, nombre: valor } : o)));
+  }
+
+  function quitarOtroPasajero(i: number) {
+    setOtros((prev) => prev.filter((_, idx) => idx !== i));
+    if (pasajeroActivo === i) elegirPasajeroActivo(-1);
+    else if (pasajeroActivo > i) setPasajeroActivo((prev) => prev - 1);
   }
 
   function handleSubmit() {
@@ -70,40 +120,26 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
       setError("El nombre es obligatorio");
       return;
     }
-    if (diasSeleccionados.length === 0) {
-      setError("Seleccioná al menos un día de viaje");
+    const diasPrincipalSeleccionados = DIAS_SEMANA.filter((d) => diasPrincipal[d] !== null);
+    if (diasPrincipalSeleccionados.length === 0) {
+      setError("Seleccioná al menos un día de viaje para el pasajero principal");
       return;
     }
-
-    const servicios = diasSeleccionados.map((d) => {
-      const s = dias[d]!;
-      return {
-        diaSemana: s.diaSemana,
-        tipoViaje: s.tipoViaje,
-        horaIda: s.horaIda,
-        horaVuelta: s.horaVuelta,
-        barrioId: s.barrioId,
-        direccion: s.direccion,
-        destino: s.destino,
-        estado: s.estado,
-        fechaInicio: s.fechaInicio,
-        fechaFin: s.fechaFin,
-        montoAbonado: s.montoAbonado === "" ? undefined : Number(s.montoAbonado),
-        estadoPago: s.estadoPago,
-        metodoPago: s.metodoPago,
-        montoPendiente: s.montoPendiente === "" ? undefined : Number(s.montoPendiente),
-        notasPago: s.notasPago,
-        notas: s.notas,
-      };
-    });
+    if (otros.some((o) => !o.nombre.trim())) {
+      setError("Ponele un nombre a todos los pasajeros agregados, o quitalos");
+      return;
+    }
 
     startTransition(async () => {
       try {
         const creado = await crearPasajeroConServicios({
           pasajero,
-          servicios,
+          servicios: serviciosDesdeD(diasPrincipal),
           tramos: tramosIniciales === "" ? 0 : Number(tramosIniciales),
-          otrosPasajeros: otrosPasajeros.map((n) => n.trim()).filter(Boolean),
+          otrosPasajeros: otros.map((o) => ({
+            nombre: o.nombre.trim(),
+            servicios: serviciosDesdeD(o.dias),
+          })),
         });
         toast.success("Pasajero creado");
         router.push(`/pasajeros/${creado.id}`);
@@ -111,18 +147,6 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
         setError(e instanceof Error ? e.message : "No se pudo crear el pasajero");
       }
     });
-  }
-
-  function agregarOtroPasajero() {
-    setOtrosPasajeros((prev) => [...prev, ""]);
-  }
-
-  function actualizarOtroPasajero(i: number, valor: string) {
-    setOtrosPasajeros((prev) => prev.map((v, idx) => (idx === i ? valor : v)));
-  }
-
-  function quitarOtroPasajero(i: number) {
-    setOtrosPasajeros((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   return (
@@ -228,14 +252,14 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
                 Agregar
               </Button>
             </div>
-            {otrosPasajeros.length > 0 && (
+            {otros.length > 0 && (
               <div className="flex flex-col gap-2">
-                {otrosPasajeros.map((nombre, i) => (
+                {otros.map((o, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <Input
                       className="h-11"
-                      value={nombre}
-                      onChange={(e) => actualizarOtroPasajero(i, e.target.value)}
+                      value={o.nombre}
+                      onChange={(e) => actualizarNombreOtro(i, e.target.value)}
                       placeholder="Nombre y apellido"
                     />
                     <Button
@@ -251,7 +275,7 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
                 ))}
                 <p className="text-xs text-muted-foreground">
                   Van a compartir el WhatsApp, email y tramos con {pasajero.nombre || "este contacto"}.
-                  Podés cargarles sus días de viaje después, desde su propia ficha.
+                  Elegí sus días de viaje abajo, en "Días de viaje".
                 </p>
               </div>
             )}
@@ -264,17 +288,46 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
           <CardTitle className="text-base">Días de viaje</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {otros.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Días de viaje de</Label>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={pasajeroActivo === -1 ? "default" : "outline"}
+                  className="h-8 rounded-full"
+                  onClick={() => elegirPasajeroActivo(-1)}
+                >
+                  {pasajero.nombre.trim() || "Principal"}
+                </Button>
+                {otros.map((o, i) => (
+                  <Button
+                    key={i}
+                    type="button"
+                    size="sm"
+                    variant={pasajeroActivo === i ? "default" : "outline"}
+                    className="h-8 rounded-full"
+                    onClick={() => elegirPasajeroActivo(i)}
+                  >
+                    {o.nombre.trim() || `Pasajero ${i + 2}`}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
             {DIAS_SEMANA.map((d) => (
               <label
                 key={d}
                 className={cn(
                   "flex flex-col items-center gap-1.5 rounded-xl border p-2.5 cursor-pointer select-none transition-colors",
-                  dias[d] ? "border-primary bg-primary/5" : "border-border"
+                  diasActuales[d] ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
                 <Checkbox
-                  checked={!!dias[d]}
+                  checked={!!diasActuales[d]}
                   onCheckedChange={(checked) => toggleDia(d, checked === true)}
                 />
                 <span className="text-xs font-medium">{DIA_LABEL_CORTO[d]}</span>
@@ -297,7 +350,7 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
               {diasSeleccionados.map((d) => (
                 <TabsContent key={d} value={d} className="pt-2">
                   <ServicioFields
-                    value={dias[d]!}
+                    value={diasActuales[d]!}
                     onChange={(v) => actualizarServicio(d, v)}
                     barrios={barrios}
                   />

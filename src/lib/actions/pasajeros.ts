@@ -18,6 +18,44 @@ function fechaOpcional(v: string | undefined | null) {
   return v && v.trim() !== "" ? new Date(v) : null;
 }
 
+function mapearServicioCreate(s: {
+  diaSemana: string;
+  barrioId?: string;
+  direccion?: string;
+  destino?: string;
+  tipoViaje: string;
+  horaIda?: string;
+  horaVuelta?: string;
+  estado?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
+  montoAbonado?: number;
+  estadoPago?: string;
+  metodoPago?: string;
+  montoPendiente?: number | null;
+  notasPago?: string;
+  notas?: string;
+}) {
+  return {
+    diaSemana: s.diaSemana as never,
+    barrioId: vacioANulo(s.barrioId),
+    direccion: vacioANulo(s.direccion),
+    destino: vacioANulo(s.destino),
+    tipoViaje: s.tipoViaje as never,
+    horaIda: vacioANulo(s.horaIda),
+    horaVuelta: vacioANulo(s.horaVuelta),
+    estado: (s.estado ?? "ACTIVO") as never,
+    fechaInicio: fechaOpcional(s.fechaInicio),
+    fechaFin: fechaOpcional(s.fechaFin),
+    montoAbonado: s.montoAbonado ?? 0,
+    estadoPago: (s.estadoPago ?? "PENDIENTE") as never,
+    metodoPago: vacioANulo(s.metodoPago),
+    montoPendiente: s.montoPendiente ?? null,
+    notasPago: vacioANulo(s.notasPago),
+    notas: vacioANulo(s.notas),
+  };
+}
+
 export async function crearPasajeroConServicios(input: unknown) {
   const usuario = await requirePermiso("pasajero:crear");
   const data = pasajeroConServiciosSchema.parse(input);
@@ -35,33 +73,16 @@ export async function crearPasajeroConServicios(input: unknown) {
         estado: data.pasajero.estado ?? "ACTIVO",
         tramos: data.tramos,
         servicios: {
-          create: data.servicios.map((s) => ({
-            diaSemana: s.diaSemana,
-            barrioId: vacioANulo(s.barrioId),
-            direccion: vacioANulo(s.direccion),
-            destino: vacioANulo(s.destino),
-            tipoViaje: s.tipoViaje,
-            horaIda: vacioANulo(s.horaIda),
-            horaVuelta: vacioANulo(s.horaVuelta),
-            estado: s.estado ?? "ACTIVO",
-            fechaInicio: fechaOpcional(s.fechaInicio),
-            fechaFin: fechaOpcional(s.fechaFin),
-            montoAbonado: s.montoAbonado ?? 0,
-            estadoPago: s.estadoPago ?? "PENDIENTE",
-            metodoPago: vacioANulo(s.metodoPago),
-            montoPendiente: s.montoPendiente ?? null,
-            notasPago: vacioANulo(s.notasPago),
-            notas: vacioANulo(s.notas),
-          })),
+          create: data.servicios.map(mapearServicioCreate),
         },
       },
       include: { servicios: true },
     });
 
-    for (const nombreOtro of data.otrosPasajeros) {
+    for (const otro of data.otrosPasajeros) {
       await tx.pasajero.create({
         data: {
-          nombre: nombreOtro,
+          nombre: otro.nombre,
           whatsapp: vacioANulo(data.pasajero.whatsapp),
           email: vacioANulo(data.pasajero.email),
           contactoExtra: vacioANulo(data.pasajero.contactoExtra),
@@ -69,6 +90,9 @@ export async function crearPasajeroConServicios(input: unknown) {
           estado: "ACTIVO",
           tramos: data.tramos,
           grupoTramosId: principal.id,
+          servicios: {
+            create: otro.servicios.map(mapearServicioCreate),
+          },
         },
       });
     }
@@ -83,7 +107,7 @@ export async function crearPasajeroConServicios(input: unknown) {
     accion: "crear",
     descripcion:
       data.otrosPasajeros.length > 0
-        ? `${usuario.nombre} creó a ${pasajero.nombre} junto con ${data.otrosPasajeros.join(", ")} (comparten tramos)`
+        ? `${usuario.nombre} creó a ${pasajero.nombre} junto con ${data.otrosPasajeros.map((o) => o.nombre).join(", ")} (comparten tramos)`
         : `${usuario.nombre} creó a ${pasajero.nombre}`,
   });
 

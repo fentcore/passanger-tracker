@@ -54,7 +54,14 @@ export const pasajeroConServiciosSchema = z.object({
   pasajero: pasajeroSchema,
   servicios: z.array(servicioSchema).min(1, "Agregá al menos un día"),
   tramos: z.coerce.number().int().min(0).default(0),
-  otrosPasajeros: z.array(z.string().trim().min(1)).default([]),
+  otrosPasajeros: z
+    .array(
+      z.object({
+        nombre: z.string().trim().min(1),
+        servicios: z.array(servicioSchema).default([]),
+      })
+    )
+    .default([]),
 });
 
 export const barrioSchema = z.object({
