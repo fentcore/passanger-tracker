@@ -1,7 +1,7 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   MapContainer,
@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { MapPin, Route, Trash2, X, Plus, ArrowUp, ArrowDown, Pencil } from "lucide-react";
+import { MapPin, Route, Trash2, X, Plus, ArrowUp, ArrowDown, Pencil, Eye, EyeOff } from "lucide-react";
 import {
   crearPuntoRuta,
   eliminarPuntoRuta,
@@ -47,8 +47,9 @@ import {
   actualizarRecorrido,
   eliminarRecorrido,
   actualizarUbicacionBarrio,
+  eliminarUbicacionBarrio,
 } from "@/lib/actions/mapa";
-import { distanciaKm, duracionEstimadaMin, type LatLng } from "@/lib/geo";
+import { distanciaKm, duracionEstimadaMin, rutaCallejera, type LatLng } from "@/lib/geo";
 import { sumarMinutos } from "@/lib/hora";
 import { toast } from "sonner";
 
@@ -131,6 +132,7 @@ export function MapaView({
   const [salidaHorario, setSalidaHorario] = useState("");
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [recorridoActivo, setRecorridoActivo] = useState<Recorrido | null>(null);
+  const [lineaCallejera, setLineaCallejera] = useState<LatLng[] | null>(null);
 
   const barrioConUbicacionDefault = barrios.find((b) => b.lat != null && b.lng != null);
   const centro: LatLng = barrioConUbicacionDefault
@@ -197,6 +199,18 @@ export function MapaView({
         router.refresh();
       } catch {
         toast.error("No se pudo eliminar");
+      }
+    });
+  }
+
+  function handleEliminarUbicacionBarrio(id: string) {
+    startTransition(async () => {
+      try {
+        await eliminarUbicacionBarrio(id);
+        toast.success("Ubicación del barrio quitada del mapa");
+        router.refresh();
+      } catch {
+        toast.error("No se pudo quitar");
       }
     });
   }
@@ -307,19 +321,27 @@ export function MapaView({
       ...paradas,
     ];
 
-    let km = 0;
-    for (let i = 0; i < todasLasParadas.length - 1; i++) {
-      km += distanciaKm(todasLasParadas[i], todasLasParadas[i + 1]);
-    }
-    km = Math.round(km * 100) / 100;
-
     startTransition(async () => {
       try {
+        const ruta = await rutaCallejera(todasLasParadas.map((p) => ({ lat: p.lat, lng: p.lng })));
+        let km: number;
+        let duracionMin: number;
+        if (ruta) {
+          km = ruta.distanciaKm;
+          duracionMin = ruta.duracionMin;
+        } else {
+          km = 0;
+          for (let i = 0; i < todasLasParadas.length - 1; i++) {
+            km += distanciaKm(todasLasParadas[i], todasLasParadas[i + 1]);
+          }
+          km = Math.round(km * 100) / 100;
+          duracionMin = duracionEstimadaMin(km);
+        }
         const payload = {
           nombre: nombreRecorrido,
           paradas: todasLasParadas,
           distanciaKm: km,
-          duracionMin: duracionEstimadaMin(km),
+          duracionMin,
         };
         if (recorridoId) {
           await actualizarRecorrido(recorridoId, payload);
@@ -353,6 +375,23 @@ export function MapaView({
   const barriosDisponiblesParaAgregar = barriosConUbicacion.filter(
     (b) => !paradas.some((p) => p.barrioId === b.id)
   );
+
+  useEffect(() => {
+    if (puntosRecorridoActivo.length < 2) {
+      setLineaCallejera(null);
+      return;
+    }
+    let cancelado = false;
+    rutaCallejera(puntosRecorridoActivo.map((p) => ({ lat: p.lat, lng: p.lng }))).then((ruta) => {
+      if (!cancelado) setLineaCallejera(ruta?.coords ?? null);
+    });
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorridoActivo?.id]);
+
+  const lineaRecorrido: LatLng[] = lineaCallejera ?? puntosRecorridoActivo.map((p) => ({ lat: p.lat, lng: p.lng }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -414,7 +453,17 @@ export function MapaView({
 
               {barriosConUbicacion.map((b) => (
                 <Marker key={b.id} position={[b.lat!, b.lng!]} icon={icono(b.color ?? COLOR_DEFECTO)}>
-                  <Popup>{b.nombre}</Popup>
+                  <Popup>
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium">{b.nombre}</span>
+                      <button
+                        className="text-xs text-red-600 text-left"
+                        onClick={() => handleEliminarUbicacionBarrio(b.id)}
+                      >
+                        Quitar ubicación
+                      </button>
+                    </div>
+                  </Popup>
                 </Marker>
               ))}
 
@@ -438,9 +487,9 @@ export function MapaView({
                 </Marker>
               ))}
 
-              {puntosRecorridoActivo.length > 1 && (
+              {lineaRecorrido.length > 1 && (
                 <Polyline
-                  positions={puntosRecorridoActivo.map((p) => [p.lat, p.lng])}
+                  positions={lineaRecorrido.map((p) => [p.lat, p.lng])}
                   color="#dc2626"
                 />
               )}
@@ -619,6 +668,20 @@ export function MapaView({
                         </p>
                       </button>
                       <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className={recorridoActivo?.id === r.id ? "size-8 text-primary" : "size-8"}
+                          onClick={() => setRecorridoActivo(recorridoActivo?.id === r.id ? null : r)}
+                          aria-label={recorridoActivo?.id === r.id ? "Quitar del mapa" : "Ver en el mapa"}
+                          title={recorridoActivo?.id === r.id ? "Quitar del mapa" : "Ver en el mapa"}
+                        >
+                          {recorridoActivo?.id === r.id ? (
+                            <EyeOff className="size-3.5" />
+                          ) : (
+                            <Eye className="size-3.5" />
+                          )}
+                        </Button>
                         <Button
                           size="icon"
                           variant="ghost"

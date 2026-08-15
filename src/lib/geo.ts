@@ -27,3 +27,32 @@ const VELOCIDAD_PROMEDIO_KMH = 28;
 export function duracionEstimadaMin(km: number): number {
   return Math.max(1, Math.round((km / VELOCIDAD_PROMEDIO_KMH) * 60));
 }
+
+export type RutaCallejera = { coords: LatLng[]; distanciaKm: number; duracionMin: number };
+
+// Usa el servidor demo público de OSRM (sin API key). Si no responde, quien llame
+// debe hacer fallback a la línea recta (distanciaTotalKm/duracionEstimadaMin).
+export async function rutaCallejera(puntos: LatLng[]): Promise<RutaCallejera | null> {
+  if (puntos.length < 2) return null;
+  try {
+    const coordsStr = puntos.map((p) => `${p.lng},${p.lat}`).join(";");
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const ruta = data?.routes?.[0];
+    if (!ruta) return null;
+    const coords: LatLng[] = ruta.geometry.coordinates.map(([lng, lat]: [number, number]) => ({
+      lat,
+      lng,
+    }));
+    return {
+      coords,
+      distanciaKm: Math.round((ruta.distance / 1000) * 100) / 100,
+      duracionMin: Math.max(1, Math.round(ruta.duration / 60)),
+    };
+  } catch {
+    return null;
+  }
+}

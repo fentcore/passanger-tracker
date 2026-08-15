@@ -159,3 +159,22 @@ export async function actualizarUbicacionBarrio(id: string, lat: number, lng: nu
   revalidatePath("/barrios");
   return barrio;
 }
+
+export async function eliminarUbicacionBarrio(id: string) {
+  const usuario = await requirePermiso("mapa:administrar");
+  const barrio = await prisma.barrio.update({
+    where: { id },
+    data: { lat: null, lng: null },
+  });
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "Barrio",
+    entidadId: id,
+    accion: "editar",
+    campo: "ubicacion",
+    descripcion: `${usuario.nombre} quitó la ubicación del barrio "${barrio.nombre}" del mapa`,
+  });
+  revalidatePath("/mapa");
+  revalidatePath("/barrios");
+  return barrio;
+}
