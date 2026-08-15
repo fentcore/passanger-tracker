@@ -1,15 +1,22 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { theme } = useTheme()
+  const [montado, setMontado] = useState(false)
+  useEffect(() => setMontado(true), [])
+  // Antes de montar, el theme real (localStorage / preferencia del sistema) no
+  // se conoce en el servidor: si se usa ese valor ya acá, el primer render del
+  // cliente no coincide con el HTML del servidor y rompe la hidratación de React.
+  const themeResuelto = montado ? (theme as ToasterProps["theme"]) : "system"
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={themeResuelto}
       className="toaster group"
       icons={{
         success: (
