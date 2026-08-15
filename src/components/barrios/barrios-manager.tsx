@@ -25,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Power, Trash2, MapPinned, Check } from "lucide-react";
+import { BackButton } from "@/components/back-button";
 import {
   crearBarrio,
   actualizarBarrio,
@@ -176,7 +177,10 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Barrios</h1>
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <h1 className="text-xl font-bold">Barrios</h1>
+        </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger render={<Button size="sm" className="rounded-full gap-1.5" />}>
             <Plus className="size-4" />

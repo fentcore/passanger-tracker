@@ -64,7 +64,6 @@ export function ServicioEditorSheet({
       barrioId: draft.barrioId,
       direccion: draft.direccion,
       destino: draft.destino,
-      cantidadTramos: draft.cantidadTramos,
       estado: draft.estado,
       fechaInicio: draft.fechaInicio,
       fechaFin: draft.fechaFin,

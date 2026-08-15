@@ -8,7 +8,6 @@ export type ServicioDraft = {
   barrioId: string;
   direccion: string;
   destino: string;
-  cantidadTramos: number;
   estado: string;
   fechaInicio: string;
   fechaFin: string;
@@ -29,7 +28,6 @@ export function servicioDraftVacio(dia: DiaSemana): ServicioDraft {
     barrioId: "",
     direccion: "",
     destino: "",
-    cantidadTramos: 1,
     estado: "ACTIVO",
     fechaInicio: "",
     fechaFin: "",
@@ -48,6 +46,7 @@ export type PasajeroDraft = {
   whatsapp: string;
   email: string;
   contactoExtra: string;
+  empleador: string;
   notasGenerales: string;
   estado: "ACTIVO" | "INACTIVO";
 };
@@ -59,6 +58,7 @@ export function pasajeroDraftVacio(): PasajeroDraft {
     whatsapp: "",
     email: "",
     contactoExtra: "",
+    empleador: "",
     notasGenerales: "",
     estado: "ACTIVO",
   };

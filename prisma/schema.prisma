@@ -89,16 +89,26 @@ model Pasajero {
   whatsapp       String?
   email          String?
   contactoExtra  String?
+  empleador      String?
   estado         EstadoPasajero @default(ACTIVO)
   notasGenerales String?
   archivedAt     DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
+  // Tramos disponibles. Si grupoTramosId está seteado, este pasajero comparte
+  // el pool de tramos con otros pasajeros del mismo grupo (ej. hermanos de la
+  // misma familia): el valor se mantiene reflejado igual en todos los miembros.
+  tramos         Int            @default(0)
+  grupoTramosId  String?
+  grupoTramos    Pasajero?      @relation("GrupoTramos", fields: [grupoTramosId], references: [id])
+  miembrosGrupo  Pasajero[]     @relation("GrupoTramos")
+
   servicios      Servicio[]
   notas          Nota[]
 
   @@index([archivedAt])
+  @@index([grupoTramosId])
 }
 
 model Servicio {
@@ -117,8 +127,6 @@ model Servicio {
   tipoViaje       TipoViaje      @default(IDA_VUELTA)
   horaIda         String?
   horaVuelta      String?
-
-  cantidadTramos  Int            @default(1)
 
   estado          EstadoServicio @default(ACTIVO)
 
@@ -248,9 +256,10 @@ model HistorialCambio {
 // --- Copys / respuestas rápidas ---
 
 model CategoriaCopy {
-  id     String @id @default(cuid())
-  nombre String @unique
-  orden  Int    @default(0)
+  id     String  @id @default(cuid())
+  nombre String  @unique
+  color  String?
+  orden  Int     @default(0)
 
   copies Copy[]
 }

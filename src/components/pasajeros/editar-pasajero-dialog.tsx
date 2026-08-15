@@ -111,6 +111,15 @@ export function EditarPasajeroDialog({
             />
           </div>
           <div className="flex flex-col gap-1.5">
+            <Label>Empleador</Label>
+            <Input
+              className="h-11"
+              value={draft.empleador}
+              onChange={(e) => set("empleador", e.target.value)}
+              placeholder="Opcional"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
             <Label>Estado</Label>
             <Select
               items={ESTADO_PASAJERO_LABEL}

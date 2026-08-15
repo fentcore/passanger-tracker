@@ -13,6 +13,7 @@ import { History } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { LimpiarRegistroDialog } from "@/components/limpieza/limpiar-registro-dialog";
+import { BackButton } from "@/components/back-button";
 import { limpiarHistorial } from "@/lib/actions/historial";
 
 type HistorialItem = {
@@ -62,11 +63,14 @@ export function HistorialViewer({ items }: { items: HistorialItem[] }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Historial de cambios</h1>
-          <p className="text-sm text-muted-foreground">
-            Quién modificó qué y cuándo, en todos los dispositivos
-          </p>
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <div>
+            <h1 className="text-xl font-bold">Historial de cambios</h1>
+            <p className="text-sm text-muted-foreground">
+              Quién modificó qué y cuándo, en todos los dispositivos
+            </p>
+          </div>
         </div>
         <LimpiarRegistroDialog
           titulo="Limpiar historial"

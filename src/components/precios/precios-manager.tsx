@@ -27,6 +27,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TrendingUp, Package, Plus, Pencil, Trash2, Power } from "lucide-react";
+import { BackButton } from "@/components/back-button";
 import {
   actualizarTarifa,
   aplicarPrecioATodosActivos,
@@ -56,7 +57,7 @@ type Paquete = {
   activo: boolean;
 };
 
-const PORCENTAJES_RAPIDOS = [5, 10, 15, 20];
+const PORCENTAJES_RAPIDOS = [20, 15, 10, 5, -5, -10, -15, -20];
 
 const PAQUETE_VACIO = { nombre: "", tramos: "", precio: "" };
 
@@ -163,11 +164,15 @@ export function PreciosManager({
       toast.error("Ingresá un valor válido");
       return;
     }
+    aplicarValor(valor);
+    setNuevoValor("");
+  }
+
+  function aplicarValor(valor: number) {
     startTransition(async () => {
       try {
         await actualizarTarifa({ precioNuevo: valor });
         toast.success("Tarifa actualizada");
-        setNuevoValor("");
         router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "No se pudo actualizar");
@@ -200,11 +205,14 @@ export function PreciosManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-bold">Precios y tarifas</h1>
-        <p className="text-sm text-muted-foreground">
-          Tarifa general vigente: acá NO se modifica el precio ya contratado por cada pasajero.
-        </p>
+      <div className="flex items-center gap-2">
+        <BackButton />
+        <div>
+          <h1 className="text-xl font-bold">Precios y tarifas</h1>
+          <p className="text-sm text-muted-foreground">
+            Tarifa general vigente: acá NO se modifica el precio ya contratado por cada pasajero.
+          </p>
+        </div>
       </div>
 
       <Card>
@@ -340,9 +348,10 @@ export function PreciosManager({
                     variant="outline"
                     disabled={pending}
                     onClick={() => aplicarPorcentaje(p)}
-                    className="h-11 rounded-full"
+                    className={`h-11 rounded-full ${p < 0 ? "text-destructive" : ""}`}
                   >
-                    +{p}%
+                    {p > 0 ? "+" : ""}
+                    {p}%
                   </Button>
                 ))}
               </div>
@@ -429,7 +438,7 @@ export function PreciosManager({
           )}
           {historial.map((h) => (
             <div key={h.id} className="flex items-center justify-between gap-2 border-b py-2 text-sm last:border-0">
-              <div>
+              <div className="min-w-0">
                 <p>
                   ${h.precioAnterior.toLocaleString("es-AR")} → ${h.precioNuevo.toLocaleString("es-AR")}
                   {h.porcentaje != null && (
@@ -440,6 +449,17 @@ export function PreciosManager({
                   {h.usuario.nombre} · {format(new Date(h.creadoEn), "d MMM yyyy HH:mm", { locale: es })}
                 </p>
               </div>
+              {h.precioAnterior !== tarifa.precio && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 shrink-0 rounded-full"
+                  disabled={pending}
+                  onClick={() => aplicarValor(h.precioAnterior)}
+                >
+                  Volver a ${h.precioAnterior.toLocaleString("es-AR")}
+                </Button>
+              )}
             </div>
           ))}
         </CardContent>

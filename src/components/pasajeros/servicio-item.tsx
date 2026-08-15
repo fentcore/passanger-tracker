@@ -16,8 +16,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Minus,
-  Plus,
   Pencil,
   Trash2,
   Archive,
@@ -33,7 +31,7 @@ import {
   ESTADO_SERVICIO_LABEL,
   ESTADO_PAGO_LABEL,
 } from "@/lib/constants";
-import { cambiarTramos, eliminarServicio, archivarServicio } from "@/lib/actions/servicios";
+import { eliminarServicio, archivarServicio } from "@/lib/actions/servicios";
 import { NotaDialog, NotaItem } from "@/components/agenda/nota-dialog";
 import { ServicioEditorSheet } from "@/components/pasajeros/servicio-editor-sheet";
 import { ServicioDraft } from "@/components/pasajeros/types";
@@ -49,7 +47,6 @@ export type ServicioDetalle = {
   tipoViaje: "IDA" | "VUELTA" | "IDA_VUELTA";
   horaIda: string | null;
   horaVuelta: string | null;
-  cantidadTramos: number;
   estado: string;
   barrioId: string | null;
   barrio: { id: string; nombre: string } | null;
@@ -87,24 +84,11 @@ export function ServicioItem({
   pasajeroNombre: string;
 }) {
   const router = useRouter();
-  const [tramos, setTramos] = useState(servicio.cantidadTramos);
   const [pending, startTransition] = useTransition();
   const [notaOpen, setNotaOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   const pendientes = servicio.notasRel.filter((n) => !n.revisada).length;
-
-  function ajustarTramos(delta: 1 | -1) {
-    setTramos((prev) => Math.max(0, prev + delta));
-    startTransition(async () => {
-      try {
-        await cambiarTramos(servicio.id, delta);
-      } catch {
-        setTramos((prev) => Math.max(0, prev - delta));
-        toast.error("No se pudo actualizar los tramos");
-      }
-    });
-  }
 
   function handleDelete() {
     startTransition(async () => {
@@ -138,7 +122,6 @@ export function ServicioItem({
     barrioId: servicio.barrioId ?? "",
     direccion: servicio.direccion ?? "",
     destino: servicio.destino ?? "",
-    cantidadTramos: servicio.cantidadTramos,
     estado: servicio.estado,
     fechaInicio: servicio.fechaInicio
       ? format(new Date(servicio.fechaInicio), "yyyy-MM-dd")
@@ -267,30 +250,7 @@ export function ServicioItem({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-4 py-2.5">
-        <div className="flex items-center gap-1">
-          <span className="text-xs font-medium text-muted-foreground mr-1.5">Tramos</span>
-          <Button
-            size="icon"
-            variant="outline"
-            className="size-9 rounded-full"
-            disabled={pending || tramos <= 0}
-            onClick={() => ajustarTramos(-1)}
-          >
-            <Minus className="size-4" />
-          </Button>
-          <span className="w-8 text-center font-bold tabular-nums text-lg">{tramos}</span>
-          <Button
-            size="icon"
-            variant="outline"
-            className="size-9 rounded-full"
-            disabled={pending}
-            onClick={() => ajustarTramos(1)}
-          >
-            <Plus className="size-4" />
-          </Button>
-        </div>
-
+      <div className="flex items-center justify-end gap-3 border-t bg-muted/30 px-4 py-2.5">
         <Button
           size="sm"
           variant={pendientes > 0 ? "default" : "outline"}

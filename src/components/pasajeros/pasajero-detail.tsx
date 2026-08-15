@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,10 +11,13 @@ import {
   MessageCircle,
   Mail,
   Info,
+  Briefcase,
   Plus,
+  Minus,
   Power,
   Archive,
   ArchiveRestore,
+  Users,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -32,8 +36,14 @@ import { ServicioEditorSheet } from "@/components/pasajeros/servicio-editor-shee
 import { ServicioItem, ServicioDetalle } from "@/components/pasajeros/servicio-item";
 import { NotaDialog, NotaItem } from "@/components/agenda/nota-dialog";
 import { servicioDraftVacio } from "@/components/pasajeros/types";
-import { cambiarEstadoPasajero, archivarPasajero, restaurarPasajero } from "@/lib/actions/pasajeros";
+import {
+  cambiarEstadoPasajero,
+  archivarPasajero,
+  restaurarPasajero,
+  cambiarTramos,
+} from "@/lib/actions/pasajeros";
 import { toast } from "sonner";
+import { BackButton } from "@/components/back-button";
 
 export type PasajeroDetalleData = {
   id: string;
@@ -42,9 +52,12 @@ export type PasajeroDetalleData = {
   whatsapp: string | null;
   email: string | null;
   contactoExtra: string | null;
+  empleador: string | null;
   notasGenerales: string | null;
   estado: "ACTIVO" | "INACTIVO";
   archivedAt: Date | string | null;
+  tramos: number;
+  companerosGrupo: { id: string; nombre: string }[];
   servicios: ServicioDetalle[];
   notas: NotaItem[];
 };
@@ -61,11 +74,25 @@ export function PasajeroDetail({
   const [addDiaOpen, setAddDiaOpen] = useState(false);
   const [notaGeneralOpen, setNotaGeneralOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [tramos, setTramos] = useState(pasajero.tramos);
 
   const diasUsados = pasajero.servicios.map((s) => s.diaSemana);
   const diasDisponibles = DIAS_SEMANA.filter((d) => !diasUsados.includes(d));
 
   const pendientesGenerales = pasajero.notas.filter((n) => !n.revisada).length;
+
+  function ajustarTramos(delta: 1 | -1) {
+    setTramos((prev) => Math.max(0, prev + delta));
+    startTransition(async () => {
+      try {
+        await cambiarTramos(pasajero.id, delta);
+        router.refresh();
+      } catch {
+        setTramos((prev) => Math.max(0, prev - delta));
+        toast.error("No se pudo actualizar los tramos");
+      }
+    });
+  }
 
   function toggleEstado() {
     const nuevo = pasajero.estado === "ACTIVO" ? "INACTIVO" : "ACTIVO";
@@ -106,6 +133,10 @@ export function PasajeroDetail({
 
   return (
     <div className="flex flex-col gap-4 pb-6">
+      <div className="flex items-center gap-2">
+        <BackButton fallbackHref="/pasajeros" />
+        <span className="text-sm text-muted-foreground">Pasajeros</span>
+      </div>
       {pasajero.archivedAt && (
         <div className="flex items-center justify-between gap-2 rounded-xl bg-muted px-3.5 py-2.5 text-sm">
           <span className="flex items-center gap-2 text-muted-foreground">
@@ -187,6 +218,11 @@ export function PasajeroDetail({
                 <Info className="size-4 text-muted-foreground" /> {pasajero.contactoExtra}
               </span>
             )}
+            {pasajero.empleador && (
+              <span className="flex items-center gap-2">
+                <Briefcase className="size-4 text-muted-foreground" /> {pasajero.empleador}
+              </span>
+            )}
           </div>
 
           {pasajero.notasGenerales && (
@@ -194,6 +230,49 @@ export function PasajeroDetail({
               {pasajero.notasGenerales}
             </p>
           )}
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3">
+            <div className="min-w-0">
+              <span className="text-xs font-medium text-muted-foreground">Tramos</span>
+              {pasajero.companerosGrupo.length > 0 && (
+                <p className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                  <Users className="size-3 shrink-0" />
+                  Compartidos con{" "}
+                  {pasajero.companerosGrupo.map((c, i) => (
+                    <span key={c.id}>
+                      {i > 0 && ", "}
+                      <Link href={`/pasajeros/${c.id}`} className="underline">
+                        {c.nombre}
+                      </Link>
+                    </span>
+                  ))}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                size="icon"
+                variant="outline"
+                className="size-9 rounded-full"
+                disabled={pending || tramos <= 0}
+                onClick={() => ajustarTramos(-1)}
+                aria-label="Restar tramo"
+              >
+                <Minus className="size-4" />
+              </Button>
+              <span className="w-10 text-center text-lg font-bold tabular-nums">{tramos}</span>
+              <Button
+                size="icon"
+                variant="outline"
+                className="size-9 rounded-full"
+                disabled={pending}
+                onClick={() => ajustarTramos(1)}
+                aria-label="Sumar tramo"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </div>
+          </div>
 
           <Button
             variant={pendientesGenerales > 0 ? "default" : "outline"}
@@ -244,6 +323,7 @@ export function PasajeroDetail({
           whatsapp: pasajero.whatsapp ?? "",
           email: pasajero.email ?? "",
           contactoExtra: pasajero.contactoExtra ?? "",
+          empleador: pasajero.empleador ?? "",
           notasGenerales: pasajero.notasGenerales ?? "",
           estado: pasajero.estado,
         }}

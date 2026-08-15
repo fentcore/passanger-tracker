@@ -56,10 +56,7 @@ export default async function PasajerosPage({
               .map((s) => DIA_LABEL_CORTO[s.diaSemana as DiaSemana]);
 
             const serviciosActivos = p.servicios.filter((s) => s.estado !== "INACTIVO");
-            const minTramos =
-              serviciosActivos.length > 0
-                ? Math.min(...serviciosActivos.map((s) => s.cantidadTramos))
-                : null;
+            const minTramos = serviciosActivos.length > 0 ? p.tramos : null;
             const nivel =
               minTramos != null ? nivelAlertaTramos(minTramos, configAlertas) : "normal";
 

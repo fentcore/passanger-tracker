@@ -15,6 +15,7 @@ const copySchema = z.object({
 
 const categoriaSchema = z.object({
   nombre: z.string().trim().min(1, "El nombre es obligatorio"),
+  color: z.string().trim().optional().or(z.literal("")),
 });
 
 export async function listarCategoriasCopy() {
@@ -45,13 +46,40 @@ export async function crearCategoriaCopy(input: unknown) {
   const usuario = await requirePermiso("copy:administrar");
   const data = categoriaSchema.parse(input);
   try {
-    const categoria = await prisma.categoriaCopy.create({ data: { nombre: data.nombre } });
+    const categoria = await prisma.categoriaCopy.create({
+      data: { nombre: data.nombre, color: data.color || null },
+    });
     await registrarCambio({
       usuarioId: usuario.id,
       entidad: "CategoriaCopy",
       entidadId: categoria.id,
       accion: "crear",
       descripcion: `${usuario.nombre} creó la categoría de copys "${categoria.nombre}"`,
+    });
+    revalidatePath("/copys");
+    return categoria;
+  } catch (e) {
+    if (esConflictoDeUnicidad(e)) {
+      return { error: mensajeConflicto(e, "una categoría") };
+    }
+    throw e;
+  }
+}
+
+export async function actualizarCategoriaCopy(id: string, input: unknown) {
+  const usuario = await requirePermiso("copy:administrar");
+  const data = categoriaSchema.parse(input);
+  try {
+    const categoria = await prisma.categoriaCopy.update({
+      where: { id },
+      data: { nombre: data.nombre, color: data.color || null },
+    });
+    await registrarCambio({
+      usuarioId: usuario.id,
+      entidad: "CategoriaCopy",
+      entidadId: categoria.id,
+      accion: "editar",
+      descripcion: `${usuario.nombre} editó la categoría de copys "${categoria.nombre}"`,
     });
     revalidatePath("/copys");
     return categoria;

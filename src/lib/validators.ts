@@ -17,6 +17,7 @@ export const pasajeroSchema = z.object({
     .union([z.string().trim().email("Email inválido"), z.literal("")])
     .optional(),
   contactoExtra: z.string().trim().optional().or(z.literal("")),
+  empleador: z.string().trim().optional().or(z.literal("")),
   notasGenerales: z.string().trim().optional().or(z.literal("")),
   estado: z.enum(["ACTIVO", "INACTIVO"]).optional(),
 });
@@ -29,7 +30,6 @@ export const servicioSchema = z.object({
   tipoViaje: z.enum(["IDA", "VUELTA", "IDA_VUELTA"]),
   horaIda: horaSchema,
   horaVuelta: horaSchema,
-  cantidadTramos: z.coerce.number().int().min(0).default(1),
   estado: z
     .enum([
       "ACTIVO",
@@ -53,6 +53,8 @@ export const servicioSchema = z.object({
 export const pasajeroConServiciosSchema = z.object({
   pasajero: pasajeroSchema,
   servicios: z.array(servicioSchema).min(1, "Agregá al menos un día"),
+  tramos: z.coerce.number().int().min(0).default(0),
+  otrosPasajeros: z.array(z.string().trim().min(1)).default([]),
 });
 
 export const barrioSchema = z.object({

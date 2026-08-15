@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requirePermiso, requireUsuario } from "@/lib/auth-helpers";
+import { requirePermiso } from "@/lib/auth-helpers";
 import { servicioSchema } from "@/lib/validators";
 import { revalidatePath } from "next/cache";
 import { registrarCambio } from "@/lib/actions/historial";
@@ -28,7 +28,6 @@ export async function crearServicio(pasajeroId: string, input: unknown) {
       tipoViaje: s.tipoViaje,
       horaIda: vacioANulo(s.horaIda),
       horaVuelta: vacioANulo(s.horaVuelta),
-      cantidadTramos: s.cantidadTramos ?? 1,
       estado: s.estado ?? "ACTIVO",
       fechaInicio: fechaOpcional(s.fechaInicio),
       fechaFin: fechaOpcional(s.fechaFin),
@@ -74,7 +73,6 @@ export async function actualizarServicio(id: string, input: unknown) {
       tipoViaje: s.tipoViaje,
       horaIda: vacioANulo(s.horaIda),
       horaVuelta: vacioANulo(s.horaVuelta),
-      cantidadTramos: s.cantidadTramos ?? 1,
       estado: s.estado ?? "ACTIVO",
       fechaInicio: fechaOpcional(s.fechaInicio),
       fechaFin: fechaOpcional(s.fechaFin),
@@ -209,23 +207,3 @@ export async function listarServiciosArchivados() {
   });
 }
 
-export async function cambiarTramos(id: string, delta: 1 | -1) {
-  await requireUsuario();
-
-  const actual = await prisma.servicio.findUnique({
-    where: { id },
-    select: { cantidadTramos: true, pasajeroId: true },
-  });
-  if (!actual) throw new Error("Servicio no encontrado");
-
-  const nuevaCantidad = Math.max(0, actual.cantidadTramos + delta);
-
-  const servicio = await prisma.servicio.update({
-    where: { id },
-    data: { cantidadTramos: nuevaCantidad },
-  });
-
-  revalidatePath("/");
-  revalidatePath(`/pasajeros/${actual.pasajeroId}`);
-  return servicio;
-}

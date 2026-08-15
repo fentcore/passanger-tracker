@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { LimpiarRegistroDialog } from "@/components/limpieza/limpiar-registro-dialog";
+import { BackButton } from "@/components/back-button";
 
 type PasajeroArchivado = { id: string; nombre: string; archivedAt: Date | string | null };
 type ServicioArchivado = {
@@ -61,11 +62,14 @@ export function ArchivadosManager({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Archivados</h1>
-          <p className="text-sm text-muted-foreground">
-            Restaurá cuando lo necesites, o limpiá lo que ya no te sirva.
-          </p>
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <div>
+            <h1 className="text-xl font-bold">Archivados</h1>
+            <p className="text-sm text-muted-foreground">
+              Restaurá cuando lo necesites, o limpiá lo que ya no te sirva.
+            </p>
+          </div>
         </div>
         <LimpiarRegistroDialog
           titulo="Limpiar archivados"

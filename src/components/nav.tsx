@@ -22,6 +22,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useState } from "react";
+import { PwaInstallButton } from "@/components/pwa-install-button";
 
 const LINKS_PRINCIPALES = [
   { href: "/", label: "Agenda", icon: CalendarDays },
@@ -106,6 +107,7 @@ export function BottomNav() {
                     {label}
                   </Link>
                 ))}
+                <PwaInstallButton />
               </div>
             </SheetContent>
           </Sheet>

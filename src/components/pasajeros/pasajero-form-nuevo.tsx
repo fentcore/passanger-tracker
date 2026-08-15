@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, X, Users } from "lucide-react";
 import { DIAS_SEMANA, DIA_LABEL_CORTO, DiaSemana } from "@/lib/constants";
 import { ServicioFields } from "@/components/pasajeros/servicio-fields";
 import {
@@ -40,6 +41,8 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
       >
   );
   const [tabActivo, setTabActivo] = useState<DiaSemana | null>(null);
+  const [tramosIniciales, setTramosIniciales] = useState("");
+  const [otrosPasajeros, setOtrosPasajeros] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const diasSeleccionados = DIAS_SEMANA.filter((d) => dias[d] !== null);
@@ -82,7 +85,6 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
         barrioId: s.barrioId,
         direccion: s.direccion,
         destino: s.destino,
-        cantidadTramos: s.cantidadTramos,
         estado: s.estado,
         fechaInicio: s.fechaInicio,
         fechaFin: s.fechaFin,
@@ -97,13 +99,30 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
 
     startTransition(async () => {
       try {
-        const creado = await crearPasajeroConServicios({ pasajero, servicios });
+        const creado = await crearPasajeroConServicios({
+          pasajero,
+          servicios,
+          tramos: tramosIniciales === "" ? 0 : Number(tramosIniciales),
+          otrosPasajeros: otrosPasajeros.map((n) => n.trim()).filter(Boolean),
+        });
         toast.success("Pasajero creado");
         router.push(`/pasajeros/${creado.id}`);
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo crear el pasajero");
       }
     });
+  }
+
+  function agregarOtroPasajero() {
+    setOtrosPasajeros((prev) => [...prev, ""]);
+  }
+
+  function actualizarOtroPasajero(i: number, valor: string) {
+    setOtrosPasajeros((prev) => prev.map((v, idx) => (idx === i ? valor : v)));
+  }
+
+  function quitarOtroPasajero(i: number) {
+    setOtrosPasajeros((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   return (
@@ -151,12 +170,91 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
             />
           </div>
           <div className="flex flex-col gap-1.5">
+            <Label>Empleador</Label>
+            <Input
+              className="h-11"
+              value={pasajero.empleador}
+              onChange={(e) => setPasajeroField("empleador", e.target.value)}
+              placeholder="Opcional"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
             <Label>Notas generales</Label>
             <Textarea
               value={pasajero.notasGenerales}
               onChange={(e) => setPasajeroField("notasGenerales", e.target.value)}
               placeholder="Opcional"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tramos</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label>Tramos iniciales</Label>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              className="h-11"
+              value={tramosIniciales}
+              onChange={(e) => setTramosIniciales(e.target.value)}
+              placeholder="0"
+            />
+            <p className="text-xs text-muted-foreground">
+              Los tramos son compartidos entre todos los días de viaje del pasajero (y entre los
+              pasajeros de abajo, si agregás alguno).
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <Users className="size-4" />
+                Otros pasajeros de este contacto
+              </Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-full gap-1"
+                onClick={agregarOtroPasajero}
+              >
+                <Plus className="size-3.5" />
+                Agregar
+              </Button>
+            </div>
+            {otrosPasajeros.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {otrosPasajeros.map((nombre, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      className="h-11"
+                      value={nombre}
+                      onChange={(e) => actualizarOtroPasajero(i, e.target.value)}
+                      placeholder="Nombre y apellido"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-9 shrink-0 text-destructive"
+                      onClick={() => quitarOtroPasajero(i)}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  Van a compartir el WhatsApp, email y tramos con {pasajero.nombre || "este contacto"}.
+                  Podés cargarles sus días de viaje después, desde su propia ficha.
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

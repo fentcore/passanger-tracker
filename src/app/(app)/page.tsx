@@ -43,7 +43,7 @@ export default async function AgendaPage({
     prisma.servicio.findMany({
       where,
       include: {
-        pasajero: { select: { id: true, nombre: true } },
+        pasajero: { select: { id: true, nombre: true, tramos: true } },
         barrio: { select: { id: true, nombre: true } },
         notasRel: {
           include: { creador: true, revisor: true },
@@ -59,9 +59,7 @@ export default async function AgendaPage({
     where: {
       estado: "ACTIVO",
       archivedAt: null,
-      servicios: {
-        some: { estado: { not: "INACTIVO" }, cantidadTramos: { lte: configAlertas.alerta } },
-      },
+      tramos: { lte: configAlertas.alerta },
     },
   });
 

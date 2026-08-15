@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { MapPin, Route, Trash2, X, Plus, ArrowUp, ArrowDown, Pencil, Eye, EyeOff } from "lucide-react";
+import { MapPin, Route, Trash2, X, Plus, ArrowUp, ArrowDown, Pencil, Eye, EyeOff, Copy as CopyIcon } from "lucide-react";
 import {
   crearPuntoRuta,
   eliminarPuntoRuta,
@@ -50,6 +50,7 @@ import {
   eliminarUbicacionBarrio,
 } from "@/lib/actions/mapa";
 import { distanciaKm, duracionEstimadaMin, rutaCallejera, type LatLng } from "@/lib/geo";
+import { BackButton } from "@/components/back-button";
 import { sumarMinutos } from "@/lib/hora";
 import { toast } from "sonner";
 
@@ -358,6 +359,27 @@ export function MapaView({
     });
   }
 
+  async function copiarRecorrido(r: Recorrido) {
+    const stops = (r.puntosRuta as Parada[] | null) ?? [];
+    const texto = [
+      r.nombre,
+      r.distanciaKm != null || r.duracionMin != null
+        ? `${r.distanciaKm != null ? `${r.distanciaKm} km` : ""}${r.distanciaKm != null && r.duracionMin != null ? " · " : ""}${r.duracionMin != null ? `~${r.duracionMin} min` : ""}`
+        : null,
+      "",
+      ...stops.map((s, i) => `${i === 0 ? "🚏" : `${i}.`} ${s.nombre}${s.horario ? ` - ${s.horario}` : ""}`),
+    ]
+      .filter((l) => l !== null)
+      .join("\n");
+
+    try {
+      await navigator.clipboard.writeText(texto);
+      toast.success("Recorrido copiado");
+    } catch {
+      toast.error("No se pudo copiar");
+    }
+  }
+
   function handleEliminarRecorrido(id: string) {
     startTransition(async () => {
       try {
@@ -395,9 +417,12 @@ export function MapaView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-bold">Mapa</h1>
-        <p className="text-sm text-muted-foreground">Barrios, rutas y horarios</p>
+      <div className="flex items-center gap-2">
+        <BackButton />
+        <div>
+          <h1 className="text-xl font-bold">Mapa</h1>
+          <p className="text-sm text-muted-foreground">Barrios, rutas y horarios</p>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -681,6 +706,16 @@ export function MapaView({
                           ) : (
                             <Eye className="size-3.5" />
                           )}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          onClick={() => copiarRecorrido(r)}
+                          aria-label="Copiar como texto"
+                          title="Copiar como texto"
+                        >
+                          <CopyIcon className="size-3.5" />
                         </Button>
                         <Button
                           size="icon"

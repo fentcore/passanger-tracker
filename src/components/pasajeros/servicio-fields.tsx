@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Minus, Plus } from "lucide-react";
 import { ServicioDraft } from "@/components/pasajeros/types";
 import {
   TIPO_VIAJE_LABEL,
@@ -119,34 +118,6 @@ export function ServicioFields({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label>Tramos</Label>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="size-11 rounded-full"
-            disabled={value.cantidadTramos <= 0}
-            onClick={() => set("cantidadTramos", Math.max(0, value.cantidadTramos - 1))}
-          >
-            <Minus className="size-4" />
-          </Button>
-          <span className="w-10 text-center text-lg font-bold tabular-nums">
-            {value.cantidadTramos}
-          </span>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="size-11 rounded-full"
-            onClick={() => set("cantidadTramos", value.cantidadTramos + 1)}
-          >
-            <Plus className="size-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
         <Label>Estado del servicio</Label>
         <Select items={ESTADO_SERVICIO_LABEL} value={value.estado} onValueChange={(v) => v && set("estado", v)}>
           <SelectTrigger className="h-11 w-full">
@@ -188,7 +159,7 @@ export function ServicioFields({
         <p className="text-sm font-semibold">Pago</p>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label>Monto abonado</Label>
+            <Label>Monto</Label>
             <Input
               type="number"
               inputMode="decimal"
@@ -213,31 +184,17 @@ export function ServicioFields({
             </Select>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Método de pago</Label>
-            <Input
-              value={value.metodoPago}
-              onChange={(e) => set("metodoPago", e.target.value)}
-              placeholder="Efectivo, transferencia..."
-              className="h-11"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Monto pendiente</Label>
-            <Input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              className="h-11"
-              value={value.montoPendiente}
-              onChange={(e) => set("montoPendiente", e.target.value)}
-              placeholder="0"
-            />
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Método de pago</Label>
+          <Input
+            value={value.metodoPago}
+            onChange={(e) => set("metodoPago", e.target.value)}
+            placeholder="Efectivo, transferencia..."
+            className="h-11"
+          />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label>Notas de pago</Label>
+          <Label>ID de Comprobante</Label>
           <Textarea
             value={value.notasPago}
             onChange={(e) => set("notasPago", e.target.value)}

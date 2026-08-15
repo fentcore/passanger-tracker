@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Minus, Plus, MessageSquare, MapPin, ArrowRight, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cambiarTramos } from "@/lib/actions/servicios";
+import { cambiarTramos } from "@/lib/actions/pasajeros";
 import { DIA_LABEL, ESTADO_SERVICIO_LABEL } from "@/lib/constants";
 import { NotaDialog, NotaItem } from "@/components/agenda/nota-dialog";
 import { cn } from "@/lib/utils";
@@ -18,9 +18,8 @@ export type ServicioCardData = {
   tipoViaje: "IDA" | "VUELTA" | "IDA_VUELTA";
   horaIda: string | null;
   horaVuelta: string | null;
-  cantidadTramos: number;
   estado: string;
-  pasajero: { id: string; nombre: string };
+  pasajero: { id: string; nombre: string; tramos: number };
   barrio: { id: string; nombre: string } | null;
   notasRel: NotaItem[];
 };
@@ -41,7 +40,7 @@ export function ServicioCard({
   servicio: ServicioCardData;
   configAlertas?: ConfigAlertas;
 }) {
-  const [tramos, setTramos] = useState(servicio.cantidadTramos);
+  const [tramos, setTramos] = useState(servicio.pasajero.tramos);
   const [pending, startTransition] = useTransition();
   const [notaOpen, setNotaOpen] = useState(false);
 
@@ -52,7 +51,7 @@ export function ServicioCard({
     setTramos((prev) => Math.max(0, prev + delta));
     startTransition(async () => {
       try {
-        await cambiarTramos(servicio.id, delta);
+        await cambiarTramos(servicio.pasajero.id, delta);
       } catch {
         setTramos((prev) => Math.max(0, prev - delta));
         toast.error("No se pudo actualizar los tramos");

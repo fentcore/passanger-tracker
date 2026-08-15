@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requirePermiso } from "@/lib/auth-helpers";
+import { requirePermiso, requireUsuario } from "@/lib/auth-helpers";
 import {
   pasajeroConServiciosSchema,
   pasajeroSchema,
@@ -22,38 +22,58 @@ export async function crearPasajeroConServicios(input: unknown) {
   const usuario = await requirePermiso("pasajero:crear");
   const data = pasajeroConServiciosSchema.parse(input);
 
-  const pasajero = await prisma.pasajero.create({
-    data: {
-      nombre: data.pasajero.nombre,
-      telefono: vacioANulo(data.pasajero.telefono),
-      whatsapp: vacioANulo(data.pasajero.whatsapp),
-      email: vacioANulo(data.pasajero.email),
-      contactoExtra: vacioANulo(data.pasajero.contactoExtra),
-      notasGenerales: vacioANulo(data.pasajero.notasGenerales),
-      estado: data.pasajero.estado ?? "ACTIVO",
-      servicios: {
-        create: data.servicios.map((s) => ({
-          diaSemana: s.diaSemana,
-          barrioId: vacioANulo(s.barrioId),
-          direccion: vacioANulo(s.direccion),
-          destino: vacioANulo(s.destino),
-          tipoViaje: s.tipoViaje,
-          horaIda: vacioANulo(s.horaIda),
-          horaVuelta: vacioANulo(s.horaVuelta),
-          cantidadTramos: s.cantidadTramos ?? 1,
-          estado: s.estado ?? "ACTIVO",
-          fechaInicio: fechaOpcional(s.fechaInicio),
-          fechaFin: fechaOpcional(s.fechaFin),
-          montoAbonado: s.montoAbonado ?? 0,
-          estadoPago: s.estadoPago ?? "PENDIENTE",
-          metodoPago: vacioANulo(s.metodoPago),
-          montoPendiente: s.montoPendiente ?? null,
-          notasPago: vacioANulo(s.notasPago),
-          notas: vacioANulo(s.notas),
-        })),
+  const pasajero = await prisma.$transaction(async (tx) => {
+    const principal = await tx.pasajero.create({
+      data: {
+        nombre: data.pasajero.nombre,
+        telefono: vacioANulo(data.pasajero.telefono),
+        whatsapp: vacioANulo(data.pasajero.whatsapp),
+        email: vacioANulo(data.pasajero.email),
+        contactoExtra: vacioANulo(data.pasajero.contactoExtra),
+        empleador: vacioANulo(data.pasajero.empleador),
+        notasGenerales: vacioANulo(data.pasajero.notasGenerales),
+        estado: data.pasajero.estado ?? "ACTIVO",
+        tramos: data.tramos,
+        servicios: {
+          create: data.servicios.map((s) => ({
+            diaSemana: s.diaSemana,
+            barrioId: vacioANulo(s.barrioId),
+            direccion: vacioANulo(s.direccion),
+            destino: vacioANulo(s.destino),
+            tipoViaje: s.tipoViaje,
+            horaIda: vacioANulo(s.horaIda),
+            horaVuelta: vacioANulo(s.horaVuelta),
+            estado: s.estado ?? "ACTIVO",
+            fechaInicio: fechaOpcional(s.fechaInicio),
+            fechaFin: fechaOpcional(s.fechaFin),
+            montoAbonado: s.montoAbonado ?? 0,
+            estadoPago: s.estadoPago ?? "PENDIENTE",
+            metodoPago: vacioANulo(s.metodoPago),
+            montoPendiente: s.montoPendiente ?? null,
+            notasPago: vacioANulo(s.notasPago),
+            notas: vacioANulo(s.notas),
+          })),
+        },
       },
-    },
-    include: { servicios: true },
+      include: { servicios: true },
+    });
+
+    for (const nombreOtro of data.otrosPasajeros) {
+      await tx.pasajero.create({
+        data: {
+          nombre: nombreOtro,
+          whatsapp: vacioANulo(data.pasajero.whatsapp),
+          email: vacioANulo(data.pasajero.email),
+          contactoExtra: vacioANulo(data.pasajero.contactoExtra),
+          empleador: vacioANulo(data.pasajero.empleador),
+          estado: "ACTIVO",
+          tramos: data.tramos,
+          grupoTramosId: principal.id,
+        },
+      });
+    }
+
+    return principal;
   });
 
   await registrarCambio({
@@ -61,7 +81,10 @@ export async function crearPasajeroConServicios(input: unknown) {
     entidad: "Pasajero",
     entidadId: pasajero.id,
     accion: "crear",
-    descripcion: `${usuario.nombre} creó a ${pasajero.nombre}`,
+    descripcion:
+      data.otrosPasajeros.length > 0
+        ? `${usuario.nombre} creó a ${pasajero.nombre} junto con ${data.otrosPasajeros.join(", ")} (comparten tramos)`
+        : `${usuario.nombre} creó a ${pasajero.nombre}`,
   });
 
   revalidatePath("/");
@@ -81,6 +104,7 @@ export async function actualizarPasajero(id: string, input: unknown) {
       whatsapp: vacioANulo(data.whatsapp),
       email: vacioANulo(data.email),
       contactoExtra: vacioANulo(data.contactoExtra),
+      empleador: vacioANulo(data.empleador),
       notasGenerales: vacioANulo(data.notasGenerales),
       ...(data.estado ? { estado: data.estado } : {}),
     },
@@ -163,6 +187,31 @@ export async function restaurarPasajero(id: string) {
   return pasajero;
 }
 
+// Los tramos se comparten entre todos los pasajeros de un mismo grupo (ej.
+// hermanos cargados juntos en "Nuevo contacto"): se reflejan igual en todos.
+export async function cambiarTramos(pasajeroId: string, delta: 1 | -1) {
+  await requireUsuario();
+
+  const actual = await prisma.pasajero.findUnique({
+    where: { id: pasajeroId },
+    select: { tramos: true, grupoTramosId: true },
+  });
+  if (!actual) throw new Error("Pasajero no encontrado");
+
+  const grupoKey = actual.grupoTramosId ?? pasajeroId;
+  const nuevaCantidad = Math.max(0, actual.tramos + delta);
+
+  await prisma.pasajero.updateMany({
+    where: { OR: [{ id: grupoKey }, { grupoTramosId: grupoKey }] },
+    data: { tramos: nuevaCantidad },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/pasajeros");
+  revalidatePath(`/pasajeros/${pasajeroId}`);
+  return { tramos: nuevaCantidad };
+}
+
 export async function listarPasajerosArchivados() {
   await requirePermiso("archivo:administrar");
   return prisma.pasajero.findMany({
@@ -199,7 +248,16 @@ export async function obtenerPasajero(id: string) {
   const orden = (dia: string) => DIAS_SEMANA.indexOf(dia as (typeof DIAS_SEMANA)[number]);
   pasajero.servicios.sort((a, b) => orden(a.diaSemana) - orden(b.diaSemana));
 
-  return pasajero;
+  const grupoKey = pasajero.grupoTramosId ?? pasajero.id;
+  const companeros = await prisma.pasajero.findMany({
+    where: {
+      id: { not: pasajero.id },
+      OR: [{ id: grupoKey }, { grupoTramosId: grupoKey }],
+    },
+    select: { id: true, nombre: true },
+  });
+
+  return { ...pasajero, companerosGrupo: companeros };
 }
 
 export async function listarPasajeros(opts?: {

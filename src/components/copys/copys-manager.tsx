@@ -32,9 +32,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Copy as CopyIcon, Plus, Pencil, Trash2, Search, MessageSquareText } from "lucide-react";
+import {
+  Copy as CopyIcon,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  MessageSquareText,
+  Check,
+  LayoutList,
+  LayoutGrid,
+} from "lucide-react";
+import { BackButton } from "@/components/back-button";
+import { PALETA_COLORES } from "@/components/barrios/barrios-manager";
 import {
   crearCategoriaCopy,
+  actualizarCategoriaCopy,
   crearCopy,
   actualizarCopy,
   eliminarCopy,
@@ -42,7 +55,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type Categoria = { id: string; nombre: string };
+type Categoria = { id: string; nombre: string; color: string | null };
 type CopyItem = {
   id: string;
   titulo: string;
@@ -50,6 +63,34 @@ type CopyItem = {
   categoriaId: string | null;
   categoria: Categoria | null;
 };
+
+function SelectorColorMini({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {PALETA_COLORES.map((c) => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => onChange(c)}
+          className={cn(
+            "flex size-7 items-center justify-center rounded-full border-2 transition-transform",
+            value === c ? "border-foreground scale-110" : "border-transparent"
+          )}
+          style={{ backgroundColor: c }}
+          aria-label={c}
+        >
+          {value === c && <Check className="size-3.5 text-white drop-shadow" />}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function CopysManager({
   copys,
@@ -61,6 +102,7 @@ export function CopysManager({
   const router = useRouter();
   const [busqueda, setBusqueda] = useState("");
   const [categoriaActiva, setCategoriaActiva] = useState<string>("TODAS");
+  const [vista, setVista] = useState<"lista" | "grilla">("lista");
   const [pending, startTransition] = useTransition();
 
   const [nuevoOpen, setNuevoOpen] = useState(false);
@@ -69,7 +111,9 @@ export function CopysManager({
   const [nuevaCategoria, setNuevaCategoria] = useState("");
 
   const [catOpen, setCatOpen] = useState(false);
+  const [catEditandoId, setCatEditandoId] = useState<string | null>(null);
   const [catNombre, setCatNombre] = useState("");
+  const [catColor, setCatColor] = useState(PALETA_COLORES[0]);
   const [catError, setCatError] = useState<string | null>(null);
 
   const [editando, setEditando] = useState<CopyItem | null>(null);
@@ -97,22 +141,37 @@ export function CopysManager({
     }
   }
 
-  function handleCrearCategoria() {
+  function abrirNuevaCategoria() {
+    setCatEditandoId(null);
+    setCatNombre("");
+    setCatColor(PALETA_COLORES[0]);
+    setCatError(null);
+  }
+
+  function abrirEditarCategoria(c: Categoria) {
+    setCatEditandoId(c.id);
+    setCatNombre(c.nombre);
+    setCatColor(c.color ?? PALETA_COLORES[0]);
+    setCatError(null);
+  }
+
+  function handleGuardarCategoria() {
     if (!catNombre.trim()) return;
     setCatError(null);
     startTransition(async () => {
       try {
-        const resultado = await crearCategoriaCopy({ nombre: catNombre });
+        const resultado = catEditandoId
+          ? await actualizarCategoriaCopy(catEditandoId, { nombre: catNombre, color: catColor })
+          : await crearCategoriaCopy({ nombre: catNombre, color: catColor });
         if (resultado && "error" in resultado) {
           setCatError(resultado.error);
           return;
         }
-        toast.success("Categoría creada");
-        setCatNombre("");
-        setCatOpen(false);
+        toast.success(catEditandoId ? "Categoría actualizada" : "Categoría creada");
+        abrirNuevaCategoria();
         router.refresh();
       } catch (e) {
-        setCatError(e instanceof Error ? e.message : "No se pudo crear");
+        setCatError(e instanceof Error ? e.message : "No se pudo guardar");
       }
     });
   }
@@ -183,32 +242,70 @@ export function CopysManager({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold">Copys</h1>
-          <p className="text-sm text-muted-foreground">
-            Respuestas rápidas para tus clientes
-          </p>
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <div>
+            <h1 className="text-xl font-bold">Copys</h1>
+            <p className="text-sm text-muted-foreground">
+              Respuestas rápidas para tus clientes
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
-          <Dialog open={catOpen} onOpenChange={setCatOpen}>
+          <Dialog
+            open={catOpen}
+            onOpenChange={(v) => {
+              setCatOpen(v);
+              if (v) abrirNuevaCategoria();
+            }}
+          >
             <DialogTrigger render={<Button size="sm" variant="outline" className="rounded-full" />}>
-              Categoría
+              Categorías
             </DialogTrigger>
             <DialogContent className="max-w-sm">
               <DialogHeader>
-                <DialogTitle>Nueva categoría</DialogTitle>
+                <DialogTitle>Categorías</DialogTitle>
               </DialogHeader>
-              <Input
-                className="h-11"
-                placeholder="Nombre de la categoría"
-                value={catNombre}
-                onChange={(e) => setCatNombre(e.target.value)}
-                autoFocus
-              />
+              {categorias.length > 0 && (
+                <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+                  {categorias.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => abrirEditarCategoria(c)}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
+                        catEditandoId === c.id ? "bg-primary/10" : "hover:bg-accent"
+                      )}
+                    >
+                      <span
+                        className="size-3.5 shrink-0 rounded-full border"
+                        style={{ backgroundColor: c.color ?? "#d4d4d8" }}
+                      />
+                      <span className="truncate">{c.nombre}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-col gap-3 border-t pt-3">
+                <Input
+                  className="h-11"
+                  placeholder="Nombre de la categoría"
+                  value={catNombre}
+                  onChange={(e) => setCatNombre(e.target.value)}
+                  autoFocus
+                />
+                <SelectorColorMini value={catColor} onChange={setCatColor} />
+              </div>
               {catError && <p className="text-sm text-destructive">{catError}</p>}
               <DialogFooter>
-                <Button className="h-11 w-full" disabled={pending} onClick={handleCrearCategoria}>
-                  Crear
+                {catEditandoId && (
+                  <Button variant="ghost" className="h-11" onClick={abrirNuevaCategoria}>
+                    Cancelar edición
+                  </Button>
+                )}
+                <Button className="h-11 flex-1" disabled={pending} onClick={handleGuardarCategoria}>
+                  {catEditandoId ? "Guardar cambios" : "Crear"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -274,14 +371,38 @@ export function CopysManager({
       </div>
 
       <div className="flex flex-col gap-2.5">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar copy..."
-            className="h-11 pl-9"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar copy..."
+              className="h-11 pl-9"
+            />
+          </div>
+          <div className="flex shrink-0 items-center rounded-full border p-0.5">
+            <Button
+              size="icon"
+              variant={vista === "lista" ? "default" : "ghost"}
+              className="size-9 rounded-full"
+              onClick={() => setVista("lista")}
+              aria-label="Ver en lista"
+              title="Ver en lista"
+            >
+              <LayoutList className="size-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant={vista === "grilla" ? "default" : "ghost"}
+              className="size-9 rounded-full"
+              onClick={() => setVista("grilla")}
+              aria-label="Ver en grilla"
+              title="Ver en grilla"
+            >
+              <LayoutGrid className="size-4" />
+            </Button>
+          </div>
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
           <Button
@@ -296,10 +417,18 @@ export function CopysManager({
             <Button
               key={c.id}
               size="sm"
-              variant={categoriaActiva === c.id ? "default" : "outline"}
-              className="shrink-0 rounded-full h-8"
+              variant="outline"
+              className={cn(
+                "shrink-0 rounded-full h-8 gap-1.5 border-2",
+                categoriaActiva === c.id && "bg-accent"
+              )}
+              style={{ borderColor: c.color ?? undefined }}
               onClick={() => setCategoriaActiva(c.id)}
             >
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: c.color ?? "#a1a1aa" }}
+              />
               {c.nombre}
             </Button>
           ))}
@@ -312,14 +441,25 @@ export function CopysManager({
           <p className="font-medium">No hay copys para este filtro</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2.5">
+        <div className={vista === "lista" ? "flex flex-col gap-2.5" : "grid grid-cols-2 gap-2.5"}>
           {filtrados.map((c) => (
-            <div key={c.id} className="rounded-2xl border bg-card p-4 shadow-sm flex flex-col gap-2">
+            <div
+              key={c.id}
+              className={cn(
+                "rounded-2xl border bg-card p-4 shadow-sm flex flex-col gap-2",
+                vista === "grilla" && "aspect-square"
+              )}
+              style={c.categoria?.color ? { borderColor: c.categoria.color } : undefined}
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="font-semibold truncate">{c.titulo}</p>
                   {c.categoria && (
-                    <Badge variant="secondary" className="mt-1 font-normal">
+                    <Badge
+                      variant="secondary"
+                      className="mt-1 font-normal text-white"
+                      style={c.categoria.color ? { backgroundColor: c.categoria.color } : undefined}
+                    >
                       {c.categoria.nombre}
                     </Badge>
                   )}
@@ -346,7 +486,12 @@ export function CopysManager({
                   </AlertDialog>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">
+              <p
+                className={cn(
+                  "text-sm text-muted-foreground whitespace-pre-wrap",
+                  vista === "grilla" ? "line-clamp-4 flex-1" : "line-clamp-3"
+                )}
+              >
                 {c.contenido}
               </p>
               <Button
