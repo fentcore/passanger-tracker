@@ -399,7 +399,7 @@ export function MapaView({
 
       <div className="grid gap-4 md:grid-cols-[1fr_340px]">
         <div className="flex flex-col gap-4">
-          <div className="h-[45vh] min-h-[280px] w-full overflow-hidden rounded-2xl border">
+          <div className="isolate h-[45vh] min-h-[280px] w-full overflow-hidden rounded-2xl border">
             <MapContainer
               center={[centro.lat, centro.lng]}
               zoom={13}

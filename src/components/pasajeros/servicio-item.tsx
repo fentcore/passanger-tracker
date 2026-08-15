@@ -215,7 +215,7 @@ export function ServicioItem({
         <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
           <MapPin className="size-3.5 shrink-0" />
           <span className="truncate">{servicio.barrio?.nombre ?? "Sin barrio"}</span>
-          {servicio.destino && <span className="truncate">· {servicio.destino}</span>}
+          {servicio.direccion && <span className="truncate">· {servicio.direccion}</span>}
         </div>
 
         <div className="mt-3 flex gap-4 flex-wrap">

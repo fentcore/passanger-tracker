@@ -108,25 +108,14 @@ export function ServicioFields({
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label>Dirección / punto de recogida</Label>
-          <Input
-            value={value.direccion}
-            onChange={(e) => set("direccion", e.target.value)}
-            placeholder="Opcional"
-            className="h-11"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Destino</Label>
-          <Input
-            value={value.destino}
-            onChange={(e) => set("destino", e.target.value)}
-            placeholder="Opcional"
-            className="h-11"
-          />
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>Dirección / punto de recogida</Label>
+        <Input
+          value={value.direccion}
+          onChange={(e) => set("direccion", e.target.value)}
+          placeholder="Opcional"
+          className="h-11"
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">

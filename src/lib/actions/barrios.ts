@@ -30,6 +30,8 @@ export async function crearBarrio(input: unknown) {
     });
     revalidatePath("/barrios");
     revalidatePath("/");
+    revalidatePath("/pasajeros", "layout");
+    revalidatePath("/mapa");
     return barrio;
   } catch (e) {
     if (esConflictoDeUnicidad(e)) {
@@ -56,6 +58,8 @@ export async function actualizarBarrio(id: string, input: unknown) {
     });
     revalidatePath("/barrios");
     revalidatePath("/");
+    revalidatePath("/pasajeros", "layout");
+    revalidatePath("/mapa");
     return barrio;
   } catch (e) {
     if (esConflictoDeUnicidad(e)) {
@@ -63,6 +67,35 @@ export async function actualizarBarrio(id: string, input: unknown) {
     }
     throw e;
   }
+}
+
+export async function eliminarBarrio(id: string) {
+  const usuario = await requirePermiso("barrio:administrar");
+
+  const [serviciosCount, puntosCount] = await Promise.all([
+    prisma.servicio.count({ where: { barrioId: id } }),
+    prisma.puntoRuta.count({ where: { barrioId: id } }),
+  ]);
+
+  if (serviciosCount > 0 || puntosCount > 0) {
+    return {
+      error: `No se puede eliminar: hay ${serviciosCount} servicio(s) y ${puntosCount} punto(s) del mapa usando este barrio. Desactivalo en vez de eliminarlo, o quitale el barrio a esos registros primero.`,
+    };
+  }
+
+  const barrio = await prisma.barrio.delete({ where: { id } });
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "Barrio",
+    entidadId: id,
+    accion: "eliminar",
+    descripcion: `${usuario.nombre} eliminó el barrio "${barrio.nombre}"`,
+  });
+  revalidatePath("/barrios");
+  revalidatePath("/");
+  revalidatePath("/pasajeros", "layout");
+  revalidatePath("/mapa");
+  return barrio;
 }
 
 export async function cambiarEstadoBarrio(id: string, activo: boolean) {
@@ -82,5 +115,7 @@ export async function cambiarEstadoBarrio(id: string, activo: boolean) {
   });
   revalidatePath("/barrios");
   revalidatePath("/");
+  revalidatePath("/pasajeros", "layout");
+  revalidatePath("/mapa");
   return barrio;
 }

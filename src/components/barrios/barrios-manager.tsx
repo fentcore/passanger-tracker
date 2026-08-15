@@ -13,11 +13,23 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Power, MapPinned, Check } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Plus, Pencil, Power, Trash2, MapPinned, Check } from "lucide-react";
 import {
   crearBarrio,
   actualizarBarrio,
   cambiarEstadoBarrio,
+  eliminarBarrio,
 } from "@/lib/actions/barrios";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -145,6 +157,22 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
     });
   }
 
+  function handleEliminar(barrio: Barrio) {
+    startTransition(async () => {
+      try {
+        const resultado = await eliminarBarrio(barrio.id);
+        if (resultado && "error" in resultado) {
+          toast.error(resultado.error);
+          return;
+        }
+        toast.success("Barrio eliminado");
+        router.refresh();
+      } catch {
+        toast.error("No se pudo eliminar el barrio");
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -230,6 +258,33 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
                 >
                   <Power className="size-4" />
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger
+                    render={
+                      <Button size="icon" variant="ghost" className="size-9 text-destructive" aria-label="Eliminar barrio" />
+                    }
+                  >
+                    <Trash2 className="size-4" />
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar "{b.nombre}"?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Si el barrio tiene servicios o puntos del
+                        mapa asociados, no se va a poder eliminar — desactivalo en ese caso.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleEliminar(b)}
+                        className="bg-destructive text-white"
+                      >
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           ))}
