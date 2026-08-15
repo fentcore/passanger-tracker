@@ -15,7 +15,6 @@ import { ServicioDraft } from "@/components/pasajeros/types";
 import {
   TIPO_VIAJE_LABEL,
   ESTADO_SERVICIO_LABEL,
-  ESTADO_PAGO_LABEL,
 } from "@/lib/constants";
 
 type Barrio = { id: string; nombre: string };
@@ -151,54 +150,6 @@ export function ServicioFields({
             className="h-11"
             value={value.fechaFin}
             onChange={(e) => set("fechaFin", e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="rounded-xl border p-3 flex flex-col gap-3 bg-muted/30">
-        <p className="text-sm font-semibold">Pago</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Monto</Label>
-            <Input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              className="h-11"
-              value={value.montoAbonado}
-              onChange={(e) => set("montoAbonado", e.target.value)}
-              placeholder="0"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Estado de pago</Label>
-            <Select items={ESTADO_PAGO_LABEL} value={value.estadoPago} onValueChange={(v) => v && set("estadoPago", v)}>
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                <SelectItem value="PARCIAL">Parcial</SelectItem>
-                <SelectItem value="PAGADO">Pagado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Método de pago</Label>
-          <Input
-            value={value.metodoPago}
-            onChange={(e) => set("metodoPago", e.target.value)}
-            placeholder="Efectivo, transferencia..."
-            className="h-11"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>ID de Comprobante</Label>
-          <Textarea
-            value={value.notasPago}
-            onChange={(e) => set("notasPago", e.target.value)}
-            placeholder="Opcional"
           />
         </div>
       </div>

@@ -24,12 +24,10 @@ import {
   ArrowRight,
   ArrowLeft,
   CalendarRange,
-  CreditCard,
 } from "lucide-react";
 import {
   DIA_LABEL,
   ESTADO_SERVICIO_LABEL,
-  ESTADO_PAGO_LABEL,
 } from "@/lib/constants";
 import { eliminarServicio, archivarServicio } from "@/lib/actions/servicios";
 import { NotaDialog, NotaItem } from "@/components/agenda/nota-dialog";
@@ -54,11 +52,6 @@ export type ServicioDetalle = {
   destino: string | null;
   fechaInicio: Date | string | null;
   fechaFin: Date | string | null;
-  montoAbonado: number;
-  estadoPago: string;
-  metodoPago: string | null;
-  montoPendiente: number | null;
-  notasPago: string | null;
   notas: string | null;
   notasRel: NotaItem[];
 };
@@ -127,11 +120,6 @@ export function ServicioItem({
       ? format(new Date(servicio.fechaInicio), "yyyy-MM-dd")
       : "",
     fechaFin: servicio.fechaFin ? format(new Date(servicio.fechaFin), "yyyy-MM-dd") : "",
-    montoAbonado: String(servicio.montoAbonado ?? ""),
-    estadoPago: servicio.estadoPago,
-    metodoPago: servicio.metodoPago ?? "",
-    montoPendiente: servicio.montoPendiente != null ? String(servicio.montoPendiente) : "",
-    notasPago: servicio.notasPago ?? "",
     notas: servicio.notas ?? "",
   };
 
@@ -234,14 +222,6 @@ export function ServicioItem({
             {servicio.fechaFin ? format(new Date(servicio.fechaFin), "dd/MM/yyyy") : "Sin fecha de fin"}
           </div>
         )}
-
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <CreditCard className="size-3.5" />
-          <span>
-            ${servicio.montoAbonado.toLocaleString("es-AR")} · {ESTADO_PAGO_LABEL[servicio.estadoPago]}
-            {servicio.metodoPago ? ` · ${servicio.metodoPago}` : ""}
-          </span>
-        </div>
 
         {servicio.notas && (
           <p className="mt-2 text-sm rounded-lg bg-muted/50 p-2 text-muted-foreground">

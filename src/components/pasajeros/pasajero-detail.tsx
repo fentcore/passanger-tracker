@@ -18,6 +18,8 @@ import {
   Archive,
   ArchiveRestore,
   Users,
+  Wallet,
+  ClipboardCopy,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -30,7 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { DIAS_SEMANA, DiaSemana } from "@/lib/constants";
+import { DIAS_SEMANA, DiaSemana, ESTADO_PAGO_LABEL } from "@/lib/constants";
 import { EditarPasajeroDialog } from "@/components/pasajeros/editar-pasajero-dialog";
 import { ServicioEditorSheet } from "@/components/pasajeros/servicio-editor-sheet";
 import { ServicioItem, ServicioDetalle } from "@/components/pasajeros/servicio-item";
@@ -57,6 +59,10 @@ export type PasajeroDetalleData = {
   estado: "ACTIVO" | "INACTIVO";
   archivedAt: Date | string | null;
   tramos: number;
+  montoAbonado: number;
+  estadoPago: string;
+  metodoPago: string | null;
+  notasPago: string | null;
   companerosGrupo: { id: string; nombre: string }[];
   servicios: ServicioDetalle[];
   notas: NotaItem[];
@@ -131,6 +137,20 @@ export function PasajeroDetail({
     });
   }
 
+  function copiarInformacion() {
+    const barrios = Array.from(
+      new Set(pasajero.servicios.map((s) => s.barrio?.nombre).filter(Boolean))
+    ) as string[];
+    const texto = [
+      `👤 ${pasajero.nombre}`,
+      `💰 Monto abonado: $${pasajero.montoAbonado.toLocaleString("es-AR")}`,
+      `📍 Barrio: ${barrios.length > 0 ? barrios.join(", ") : "Sin especificar"}`,
+      `🎫 Tramos restantes: ${tramos}`,
+    ].join("\n");
+    navigator.clipboard.writeText(texto);
+    toast.success("Información copiada");
+  }
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <div className="flex items-center gap-2">
@@ -166,6 +186,15 @@ export function PasajeroDetail({
               </Badge>
             </div>
             <div className="flex gap-1">
+              <Button
+                size="icon"
+                variant="outline"
+                className="size-9"
+                onClick={copiarInformacion}
+                title="Copiar información"
+              >
+                <ClipboardCopy className="size-4" />
+              </Button>
               <Button size="icon" variant="outline" className="size-9" onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
               </Button>
@@ -274,6 +303,19 @@ export function PasajeroDetail({
             </div>
           </div>
 
+          <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
+            <Wallet className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 text-sm">
+              <span className="font-semibold">
+                ${pasajero.montoAbonado.toLocaleString("es-AR")}
+              </span>
+              <span className="text-muted-foreground"> · {ESTADO_PAGO_LABEL[pasajero.estadoPago]}</span>
+              {pasajero.metodoPago && (
+                <span className="text-muted-foreground"> · {pasajero.metodoPago}</span>
+              )}
+            </div>
+          </div>
+
           <Button
             variant={pendientesGenerales > 0 ? "default" : "outline"}
             className="self-start h-9 rounded-full gap-1.5"
@@ -326,6 +368,10 @@ export function PasajeroDetail({
           empleador: pasajero.empleador ?? "",
           notasGenerales: pasajero.notasGenerales ?? "",
           estado: pasajero.estado,
+          montoAbonado: String(pasajero.montoAbonado ?? ""),
+          estadoPago: pasajero.estadoPago,
+          metodoPago: pasajero.metodoPago ?? "",
+          notasPago: pasajero.notasPago ?? "",
         }}
       />
 

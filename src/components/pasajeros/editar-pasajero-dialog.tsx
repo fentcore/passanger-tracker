@@ -23,7 +23,7 @@ import {
 import { PasajeroDraft } from "@/components/pasajeros/types";
 import { actualizarPasajero } from "@/lib/actions/pasajeros";
 import { toast } from "sonner";
-import { ESTADO_PASAJERO_LABEL } from "@/lib/constants";
+import { ESTADO_PASAJERO_LABEL, ESTADO_PAGO_LABEL, METODO_PAGO_OPTIONS } from "@/lib/constants";
 
 export function EditarPasajeroDialog({
   open,
@@ -134,6 +134,67 @@ export function EditarPasajeroDialog({
                 <SelectItem value="INACTIVO">Inactivo</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="rounded-xl border p-3 flex flex-col gap-3 bg-muted/30">
+            <p className="text-sm font-semibold">Pago</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label>Monto abonado</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  className="h-11"
+                  value={draft.montoAbonado}
+                  onChange={(e) => set("montoAbonado", e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Estado de pago</Label>
+                <Select
+                  items={ESTADO_PAGO_LABEL}
+                  value={draft.estadoPago}
+                  onValueChange={(v) => v && set("estadoPago", v)}
+                >
+                  <SelectTrigger className="h-11 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                    <SelectItem value="PARCIAL">Parcial</SelectItem>
+                    <SelectItem value="PAGADO">Pagado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Método de pago</Label>
+              <Select
+                items={Object.fromEntries(METODO_PAGO_OPTIONS.map((m) => [m, m]))}
+                value={draft.metodoPago || undefined}
+                onValueChange={(v) => set("metodoPago", v ?? "")}
+              >
+                <SelectTrigger className="h-11 w-full">
+                  <SelectValue placeholder="Seleccionar método" />
+                </SelectTrigger>
+                <SelectContent>
+                  {METODO_PAGO_OPTIONS.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Notas de pago</Label>
+              <Textarea
+                value={draft.notasPago}
+                onChange={(e) => set("notasPago", e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Notas generales</Label>

@@ -14,8 +14,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, X, Users } from "lucide-react";
-import { DIAS_SEMANA, DIA_LABEL_CORTO, DiaSemana } from "@/lib/constants";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, X, Users, CopyPlus } from "lucide-react";
+import {
+  DIAS_SEMANA,
+  DIA_LABEL_CORTO,
+  DIA_LABEL,
+  DiaSemana,
+  ESTADO_PAGO_LABEL,
+  METODO_PAGO_OPTIONS,
+} from "@/lib/constants";
 import { ServicioFields } from "@/components/pasajeros/servicio-fields";
 import {
   PasajeroDraft,
@@ -49,11 +63,6 @@ function serviciosDesdeD(dias: DiasRecord) {
       estado: s.estado,
       fechaInicio: s.fechaInicio,
       fechaFin: s.fechaFin,
-      montoAbonado: s.montoAbonado === "" ? undefined : Number(s.montoAbonado),
-      estadoPago: s.estadoPago,
-      metodoPago: s.metodoPago,
-      montoPendiente: s.montoPendiente === "" ? undefined : Number(s.montoPendiente),
-      notasPago: s.notasPago,
       notas: s.notas,
     };
   });
@@ -69,6 +78,7 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
   const [tabActivo, setTabActivo] = useState<DiaSemana | null>(null);
   const [tramosIniciales, setTramosIniciales] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [copiarDestino, setCopiarDestino] = useState<DiaSemana[]>([]);
 
   const diasActuales = pasajeroActivo === -1 ? diasPrincipal : otros[pasajeroActivo].dias;
   const diasSeleccionados = DIAS_SEMANA.filter((d) => diasActuales[d] !== null);
@@ -94,6 +104,22 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
 
   function actualizarServicio(dia: DiaSemana, v: ServicioDraft) {
     setDiasActuales({ ...diasActuales, [dia]: v });
+  }
+
+  function toggleCopiarDestino(dia: DiaSemana, checked: boolean) {
+    setCopiarDestino((prev) => (checked ? [...prev, dia] : prev.filter((d) => d !== dia)));
+  }
+
+  function copiarDiaATrasDias(origen: DiaSemana) {
+    const base = diasActuales[origen];
+    if (!base || copiarDestino.length === 0) return;
+    const next = { ...diasActuales };
+    for (const d of copiarDestino) {
+      next[d] = { ...base, diaSemana: d };
+    }
+    setDiasActuales(next);
+    setCopiarDestino([]);
+    toast.success("Día copiado");
   }
 
   function setPasajeroField<K extends keyof PasajeroDraft>(key: K, v: PasajeroDraft[K]) {
@@ -185,15 +211,6 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Información adicional de contacto</Label>
-            <Input
-              className="h-11"
-              value={pasajero.contactoExtra}
-              onChange={(e) => setPasajeroField("contactoExtra", e.target.value)}
-              placeholder="Opcional"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
             <Label>Empleador</Label>
             <Input
               className="h-11"
@@ -215,7 +232,7 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Tramos</CardTitle>
+          <CardTitle className="text-base">Tramos y pago</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -233,6 +250,60 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
               Los tramos son compartidos entre todos los días de viaje del pasajero (y entre los
               pasajeros de abajo, si agregás alguno).
             </p>
+          </div>
+
+          <div className="rounded-xl border p-3 flex flex-col gap-3 bg-muted/30">
+            <p className="text-sm font-semibold">Pago</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label>Monto abonado</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  className="h-11"
+                  value={pasajero.montoAbonado}
+                  onChange={(e) => setPasajeroField("montoAbonado", e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Estado de pago</Label>
+                <Select
+                  items={ESTADO_PAGO_LABEL}
+                  value={pasajero.estadoPago}
+                  onValueChange={(v) => v && setPasajeroField("estadoPago", v)}
+                >
+                  <SelectTrigger className="h-11 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                    <SelectItem value="PARCIAL">Parcial</SelectItem>
+                    <SelectItem value="PAGADO">Pagado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Método de pago</Label>
+              <Select
+                items={Object.fromEntries(METODO_PAGO_OPTIONS.map((m) => [m, m]))}
+                value={pasajero.metodoPago || undefined}
+                onValueChange={(v) => setPasajeroField("metodoPago", v ?? "")}
+              >
+                <SelectTrigger className="h-11 w-full">
+                  <SelectValue placeholder="Seleccionar método" />
+                </SelectTrigger>
+                <SelectContent>
+                  {METODO_PAGO_OPTIONS.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -348,12 +419,47 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
                 ))}
               </TabsList>
               {diasSeleccionados.map((d) => (
-                <TabsContent key={d} value={d} className="pt-2">
+                <TabsContent key={d} value={d} className="pt-2 flex flex-col gap-3">
                   <ServicioFields
                     value={diasActuales[d]!}
                     onChange={(v) => actualizarServicio(d, v)}
                     barrios={barrios}
                   />
+                  <div className="rounded-xl border p-3 flex flex-col gap-2 bg-muted/30">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold">
+                      <CopyPlus className="size-4" />
+                      Copiar {DIA_LABEL[d].toLowerCase()} a otros días
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DIAS_SEMANA.filter((otro) => otro !== d).map((otro) => (
+                        <label
+                          key={otro}
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs cursor-pointer select-none",
+                            copiarDestino.includes(otro)
+                              ? "border-primary bg-primary/10"
+                              : "border-border"
+                          )}
+                        >
+                          <Checkbox
+                            checked={copiarDestino.includes(otro)}
+                            onCheckedChange={(checked) => toggleCopiarDestino(otro, checked === true)}
+                          />
+                          {DIA_LABEL_CORTO[otro]}
+                        </label>
+                      ))}
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 self-start rounded-full"
+                      disabled={copiarDestino.length === 0}
+                      onClick={() => copiarDiaATrasDias(d)}
+                    >
+                      Copiar
+                    </Button>
+                  </div>
                 </TabsContent>
               ))}
             </Tabs>

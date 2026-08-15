@@ -25,6 +25,7 @@ const paradaSchema = z.object({
 
 const recorridoSchema = z.object({
   nombre: z.string().trim().min(1),
+  turno: z.enum(["MANANA", "TARDE"]).optional(),
   paradas: z.array(paradaSchema).min(2, "Necesitás una salida y al menos una parada"),
   duracionMin: z.number().optional(),
   distanciaKm: z.number().optional(),
@@ -88,6 +89,7 @@ export async function crearRecorrido(input: unknown) {
   const recorrido = await prisma.recorrido.create({
     data: {
       nombre: data.nombre,
+      turno: data.turno,
       puntosRuta: data.paradas,
       duracionMin: data.duracionMin,
       distanciaKm: data.distanciaKm,
@@ -111,6 +113,7 @@ export async function actualizarRecorrido(id: string, input: unknown) {
     where: { id },
     data: {
       nombre: data.nombre,
+      turno: data.turno,
       puntosRuta: data.paradas,
       duracionMin: data.duracionMin,
       distanciaKm: data.distanciaKm,

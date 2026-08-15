@@ -69,3 +69,11 @@ export const ESTADO_PASAJERO_LABEL: Record<string, string> = {
   ACTIVO: "Activo",
   INACTIVO: "Inactivo",
 };
+
+export const METODO_PAGO_OPTIONS = [
+  "Efectivo",
+  "Transferencia",
+  "Mercado Pago",
+  "Débito automático",
+  "Otro",
+] as const;

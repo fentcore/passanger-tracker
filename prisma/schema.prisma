@@ -104,6 +104,12 @@ model Pasajero {
   grupoTramos    Pasajero?      @relation("GrupoTramos", fields: [grupoTramosId], references: [id])
   miembrosGrupo  Pasajero[]     @relation("GrupoTramos")
 
+  // Pago: es del contacto entero, no de un día de viaje puntual.
+  montoAbonado   Float          @default(0)
+  estadoPago     EstadoPago     @default(PENDIENTE)
+  metodoPago     String?
+  notasPago      String?
+
   servicios      Servicio[]
   notas          Nota[]
 
@@ -132,12 +138,6 @@ model Servicio {
 
   fechaInicio     DateTime?
   fechaFin        DateTime?
-
-  montoAbonado    Float          @default(0)
-  estadoPago      EstadoPago     @default(PENDIENTE)
-  metodoPago      String?
-  montoPendiente  Float?
-  notasPago       String?
 
   // Precio por tramo que este pasajero tiene contratado, independiente de la
   // tarifa general vigente. Un aumento general de tarifa NO lo modifica.
@@ -284,6 +284,11 @@ enum TipoPuntoRuta {
   OTRO
 }
 
+enum TurnoRecorrido {
+  MANANA
+  TARDE
+}
+
 model PuntoRuta {
   id        String        @id @default(cuid())
   nombre    String
@@ -306,6 +311,7 @@ model Recorrido {
   destino     PuntoRuta? @relation("RecorridoDestino", fields: [destinoId], references: [id])
   destinoId   String?
   puntosRuta  Json?
+  turno       TurnoRecorrido?
   duracionMin Int?
   distanciaKm Float?
   createdAt   DateTime   @default(now())

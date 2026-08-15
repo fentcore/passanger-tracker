@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { MapPin, Route, Trash2, X, Plus, ArrowUp, ArrowDown, Pencil, Eye, EyeOff, Copy as CopyIcon } from "lucide-react";
+import { MapPin, Route, Trash2, X, Plus, ArrowUp, ArrowDown, Pencil, Eye, EyeOff, Copy as CopyIcon, ChevronDown, ChevronUp } from "lucide-react";
 import {
   crearPuntoRuta,
   eliminarPuntoRuta,
@@ -71,12 +71,19 @@ type Parada = {
   horario: string;
   barrioId?: string;
 };
+type Turno = "MANANA" | "TARDE";
 type Recorrido = {
   id: string;
   nombre: string;
   puntosRuta: unknown;
   duracionMin: number | null;
   distanciaKm: number | null;
+  turno: Turno | null;
+};
+
+const TURNO_LABEL: Record<Turno, string> = {
+  MANANA: "Viajes Mañana",
+  TARDE: "Viajes Tarde",
 };
 
 const COLOR_DEFECTO = "#2F5FE0";
@@ -129,11 +136,13 @@ export function MapaView({
 
   const [recorridoId, setRecorridoId] = useState<string | null>(null);
   const [nombreRecorrido, setNombreRecorrido] = useState("");
+  const [turnoRecorrido, setTurnoRecorrido] = useState<Turno | "">("");
   const [salidaId, setSalidaId] = useState("");
   const [salidaHorario, setSalidaHorario] = useState("");
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [recorridoActivo, setRecorridoActivo] = useState<Recorrido | null>(null);
   const [lineaCallejera, setLineaCallejera] = useState<LatLng[] | null>(null);
+  const [mostrarCreador, setMostrarCreador] = useState(false);
 
   const barrioConUbicacionDefault = barrios.find((b) => b.lat != null && b.lng != null);
   const centro: LatLng = barrioConUbicacionDefault
@@ -221,6 +230,7 @@ export function MapaView({
   function nuevaRuta() {
     setRecorridoId(null);
     setNombreRecorrido("");
+    setTurnoRecorrido("");
     setSalidaId("");
     setSalidaHorario("");
     setParadas([]);
@@ -288,6 +298,8 @@ export function MapaView({
     const [salida, ...resto] = stops;
     setRecorridoId(r.id);
     setNombreRecorrido(r.nombre);
+    setTurnoRecorrido(r.turno ?? "");
+    setMostrarCreador(true);
     if (salida) {
       const puntoCoincidente = puntosOrigen.find(
         (p) => Math.abs(p.lat - salida.lat) < 1e-6 && Math.abs(p.lng - salida.lng) < 1e-6
@@ -340,6 +352,7 @@ export function MapaView({
         }
         const payload = {
           nombre: nombreRecorrido,
+          turno: turnoRecorrido || undefined,
           paradas: todasLasParadas,
           distanciaKm: km,
           duracionMin,
@@ -390,6 +403,12 @@ export function MapaView({
     }
   }
 
+  function toggleVerEnMapa(r: Recorrido) {
+    const activar = recorridoActivo?.id !== r.id;
+    setRecorridoActivo(activar ? r : null);
+    if (activar) setMostrarCreador(true);
+  }
+
   function handleEliminarRecorrido(id: string) {
     startTransition(async () => {
       try {
@@ -425,6 +444,84 @@ export function MapaView({
 
   const lineaRecorrido: LatLng[] = lineaCallejera ?? puntosRecorridoActivo.map((p) => ({ lat: p.lat, lng: p.lng }));
 
+  function renderRecorridoCard(r: Recorrido) {
+    const stops = (r.puntosRuta as Parada[] | null) ?? [];
+    return (
+      <div
+        key={r.id}
+        className={`rounded-2xl border bg-card p-3.5 shadow-sm ${recorridoActivo?.id === r.id ? "ring-2 ring-primary" : ""}`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <button className="min-w-0 text-left" onClick={() => toggleVerEnMapa(r)}>
+            <p className="font-medium truncate">{r.nombre}</p>
+            <p className="text-xs text-muted-foreground">
+              {r.distanciaKm != null ? `${r.distanciaKm} km` : "—"} ·{" "}
+              {r.duracionMin != null ? `~${r.duracionMin} min` : "—"}
+            </p>
+          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className={recorridoActivo?.id === r.id ? "size-8 text-primary" : "size-8"}
+              onClick={() => toggleVerEnMapa(r)}
+              aria-label={recorridoActivo?.id === r.id ? "Quitar del mapa" : "Ver en el mapa"}
+              title={recorridoActivo?.id === r.id ? "Quitar del mapa" : "Ver en el mapa"}
+            >
+              {recorridoActivo?.id === r.id ? (
+                <EyeOff className="size-3.5" />
+              ) : (
+                <Eye className="size-3.5" />
+              )}
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              onClick={() => copiarRecorrido(r)}
+              aria-label="Copiar como texto"
+              title="Copiar como texto"
+            >
+              <CopyIcon className="size-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="size-8" onClick={() => cargarRecorridoParaEditar(r)}>
+              <Pencil className="size-3.5" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger render={<Button size="icon" variant="ghost" className="size-8 text-destructive" />}>
+                <Trash2 className="size-3.5" />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar "{r.nombre}"?</AlertDialogTitle>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleEliminarRecorrido(r.id)} className="bg-destructive text-white">
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+        {stops.length > 0 && (
+          <ul className="mt-2 flex flex-col gap-0.5 border-t pt-2 text-xs text-muted-foreground">
+            {stops.map((s, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span className="truncate">
+                  {i === 0 ? "🚏 " : `${i}. `}
+                  {s.nombre}
+                </span>
+                <span className="tabular-nums shrink-0">{s.horario || "—"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
@@ -435,6 +532,20 @@ export function MapaView({
         </div>
       </div>
 
+      <Button
+        variant="outline"
+        className="w-full justify-between rounded-full"
+        onClick={() => setMostrarCreador((v) => !v)}
+      >
+        <span className="flex items-center gap-1.5">
+          <Route className="size-4" />
+          {recorridoId ? "Editar recorrido" : "Nuevo recorrido / marcar en el mapa"}
+        </span>
+        {mostrarCreador ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+      </Button>
+
+      {mostrarCreador && (
+      <>
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
@@ -550,6 +661,23 @@ export function MapaView({
                 onChange={(e) => setNombreRecorrido(e.target.value)}
                 placeholder="Ej: Recorrido mañana"
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Turno</Label>
+              <Select
+                items={{ MANANA: "Viajes Mañana", TARDE: "Viajes Tarde" }}
+                value={turnoRecorrido || undefined}
+                onValueChange={(v) => v && setTurnoRecorrido(v as Turno)}
+              >
+                <SelectTrigger className="h-11 w-full">
+                  <SelectValue placeholder="Elegir turno" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MANANA">Viajes Mañana</SelectItem>
+                  <SelectItem value="TARDE">Viajes Tarde</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -674,6 +802,8 @@ export function MapaView({
             </Button>
           </div>
         </div>
+      </>
+      )}
 
         <div className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold text-muted-foreground px-1">
@@ -682,96 +812,36 @@ export function MapaView({
           {recorridos.length === 0 ? (
             <p className="px-1 text-sm text-muted-foreground">Todavía no guardaste recorridos.</p>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {recorridos.map((r) => {
-                const stops = (r.puntosRuta as Parada[] | null) ?? [];
+            <>
+              {(["MANANA", "TARDE"] as const).map((turno) => {
+                const grupo = recorridos.filter((r) => r.turno === turno);
+                if (grupo.length === 0) return null;
                 return (
-                  <div
-                    key={r.id}
-                    className={`rounded-2xl border bg-card p-3.5 shadow-sm ${recorridoActivo?.id === r.id ? "ring-2 ring-primary" : ""}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <button
-                        className="min-w-0 text-left"
-                        onClick={() => setRecorridoActivo(recorridoActivo?.id === r.id ? null : r)}
-                      >
-                        <p className="font-medium truncate">{r.nombre}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {r.distanciaKm != null ? `${r.distanciaKm} km` : "—"} ·{" "}
-                          {r.duracionMin != null ? `~${r.duracionMin} min` : "—"}
-                        </p>
-                      </button>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className={recorridoActivo?.id === r.id ? "size-8 text-primary" : "size-8"}
-                          onClick={() => setRecorridoActivo(recorridoActivo?.id === r.id ? null : r)}
-                          aria-label={recorridoActivo?.id === r.id ? "Quitar del mapa" : "Ver en el mapa"}
-                          title={recorridoActivo?.id === r.id ? "Quitar del mapa" : "Ver en el mapa"}
-                        >
-                          {recorridoActivo?.id === r.id ? (
-                            <EyeOff className="size-3.5" />
-                          ) : (
-                            <Eye className="size-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="size-8"
-                          onClick={() => copiarRecorrido(r)}
-                          aria-label="Copiar como texto"
-                          title="Copiar como texto"
-                        >
-                          <CopyIcon className="size-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="size-8"
-                          onClick={() => cargarRecorridoParaEditar(r)}
-                        >
-                          <Pencil className="size-3.5" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger render={<Button size="icon" variant="ghost" className="size-8 text-destructive" />}>
-                            <Trash2 className="size-3.5" />
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar "{r.nombre}"?</AlertDialogTitle>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleEliminarRecorrido(r.id)}
-                                className="bg-destructive text-white"
-                              >
-                                Eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                  <div key={turno} className="flex flex-col gap-2">
+                    <h3 className="px-1 text-xs font-semibold text-muted-foreground">
+                      {TURNO_LABEL[turno]} ({grupo.length})
+                    </h3>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {grupo.map((r) => renderRecorridoCard(r))}
                     </div>
-                    {stops.length > 0 && (
-                      <ul className="mt-2 flex flex-col gap-0.5 border-t pt-2 text-xs text-muted-foreground">
-                        {stops.map((s, i) => (
-                          <li key={i} className="flex justify-between gap-2">
-                            <span className="truncate">
-                              {i === 0 ? "🚏 " : `${i}. `}
-                              {s.nombre}
-                            </span>
-                            <span className="tabular-nums shrink-0">{s.horario || "—"}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
                   </div>
                 );
               })}
-            </div>
+              {(() => {
+                const sinTurno = recorridos.filter((r) => !r.turno);
+                if (sinTurno.length === 0) return null;
+                return (
+                  <div className="flex flex-col gap-2">
+                    <h3 className="px-1 text-xs font-semibold text-muted-foreground">
+                      Sin turno ({sinTurno.length})
+                    </h3>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {sinTurno.map((r) => renderRecorridoCard(r))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
           )}
         </div>
 

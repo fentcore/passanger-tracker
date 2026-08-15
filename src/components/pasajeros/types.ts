@@ -11,11 +11,6 @@ export type ServicioDraft = {
   estado: string;
   fechaInicio: string;
   fechaFin: string;
-  montoAbonado: string;
-  estadoPago: string;
-  metodoPago: string;
-  montoPendiente: string;
-  notasPago: string;
   notas: string;
 };
 
@@ -31,11 +26,6 @@ export function servicioDraftVacio(dia: DiaSemana): ServicioDraft {
     estado: "ACTIVO",
     fechaInicio: "",
     fechaFin: "",
-    montoAbonado: "",
-    estadoPago: "PENDIENTE",
-    metodoPago: "",
-    montoPendiente: "",
-    notasPago: "",
     notas: "",
   };
 }
@@ -49,6 +39,10 @@ export type PasajeroDraft = {
   empleador: string;
   notasGenerales: string;
   estado: "ACTIVO" | "INACTIVO";
+  montoAbonado: string;
+  estadoPago: string;
+  metodoPago: string;
+  notasPago: string;
 };
 
 export function pasajeroDraftVacio(): PasajeroDraft {
@@ -61,5 +55,9 @@ export function pasajeroDraftVacio(): PasajeroDraft {
     empleador: "",
     notasGenerales: "",
     estado: "ACTIVO",
+    montoAbonado: "",
+    estadoPago: "PENDIENTE",
+    metodoPago: "",
+    notasPago: "",
   };
 }

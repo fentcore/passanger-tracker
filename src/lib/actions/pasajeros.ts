@@ -29,11 +29,6 @@ function mapearServicioCreate(s: {
   estado?: string;
   fechaInicio?: string;
   fechaFin?: string;
-  montoAbonado?: number;
-  estadoPago?: string;
-  metodoPago?: string;
-  montoPendiente?: number | null;
-  notasPago?: string;
   notas?: string;
 }) {
   return {
@@ -47,11 +42,6 @@ function mapearServicioCreate(s: {
     estado: (s.estado ?? "ACTIVO") as never,
     fechaInicio: fechaOpcional(s.fechaInicio),
     fechaFin: fechaOpcional(s.fechaFin),
-    montoAbonado: s.montoAbonado ?? 0,
-    estadoPago: (s.estadoPago ?? "PENDIENTE") as never,
-    metodoPago: vacioANulo(s.metodoPago),
-    montoPendiente: s.montoPendiente ?? null,
-    notasPago: vacioANulo(s.notasPago),
     notas: vacioANulo(s.notas),
   };
 }
@@ -72,6 +62,10 @@ export async function crearPasajeroConServicios(input: unknown) {
         notasGenerales: vacioANulo(data.pasajero.notasGenerales),
         estado: data.pasajero.estado ?? "ACTIVO",
         tramos: data.tramos,
+        montoAbonado: data.pasajero.montoAbonado ?? 0,
+        estadoPago: (data.pasajero.estadoPago ?? "PENDIENTE") as never,
+        metodoPago: vacioANulo(data.pasajero.metodoPago),
+        notasPago: vacioANulo(data.pasajero.notasPago),
         servicios: {
           create: data.servicios.map(mapearServicioCreate),
         },
@@ -90,6 +84,10 @@ export async function crearPasajeroConServicios(input: unknown) {
           estado: "ACTIVO",
           tramos: data.tramos,
           grupoTramosId: principal.id,
+          montoAbonado: data.pasajero.montoAbonado ?? 0,
+          estadoPago: (data.pasajero.estadoPago ?? "PENDIENTE") as never,
+          metodoPago: vacioANulo(data.pasajero.metodoPago),
+          notasPago: vacioANulo(data.pasajero.notasPago),
           servicios: {
             create: otro.servicios.map(mapearServicioCreate),
           },
@@ -131,6 +129,10 @@ export async function actualizarPasajero(id: string, input: unknown) {
       empleador: vacioANulo(data.empleador),
       notasGenerales: vacioANulo(data.notasGenerales),
       ...(data.estado ? { estado: data.estado } : {}),
+      montoAbonado: data.montoAbonado ?? 0,
+      estadoPago: (data.estadoPago ?? "PENDIENTE") as never,
+      metodoPago: vacioANulo(data.metodoPago),
+      notasPago: vacioANulo(data.notasPago),
     },
   });
 
@@ -299,13 +301,13 @@ export async function listarPasajeros(opts?: {
       ...(opts?.estado ? { estado: opts.estado } : {}),
       ...(opts?.busqueda ? { nombre: { contains: opts.busqueda } } : {}),
       ...(opts?.whatsapp ? { whatsapp: { contains: opts.whatsapp } } : {}),
-      ...(opts?.barrioId || opts?.tipoViaje || opts?.estadoPago
+      ...(opts?.estadoPago ? { estadoPago: opts.estadoPago as never } : {}),
+      ...(opts?.barrioId || opts?.tipoViaje
         ? {
             servicios: {
               some: {
                 ...(opts?.barrioId ? { barrioId: opts.barrioId } : {}),
                 ...(opts?.tipoViaje ? { tipoViaje: opts.tipoViaje as never } : {}),
-                ...(opts?.estadoPago ? { estadoPago: opts.estadoPago as never } : {}),
               },
             },
           }

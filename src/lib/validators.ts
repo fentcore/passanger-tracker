@@ -20,6 +20,10 @@ export const pasajeroSchema = z.object({
   empleador: z.string().trim().optional().or(z.literal("")),
   notasGenerales: z.string().trim().optional().or(z.literal("")),
   estado: z.enum(["ACTIVO", "INACTIVO"]).optional(),
+  montoAbonado: z.coerce.number().min(0).optional(),
+  estadoPago: z.enum(["PENDIENTE", "PARCIAL", "PAGADO"]).optional(),
+  metodoPago: z.string().trim().optional().or(z.literal("")),
+  notasPago: z.string().trim().optional().or(z.literal("")),
 });
 
 export const servicioSchema = z.object({
@@ -42,11 +46,6 @@ export const servicioSchema = z.object({
     .optional(),
   fechaInicio: z.string().trim().optional().or(z.literal("")),
   fechaFin: z.string().trim().optional().or(z.literal("")),
-  montoAbonado: z.coerce.number().min(0).optional(),
-  estadoPago: z.enum(["PENDIENTE", "PARCIAL", "PAGADO"]).optional(),
-  metodoPago: z.string().trim().optional().or(z.literal("")),
-  montoPendiente: z.coerce.number().min(0).optional().nullable(),
-  notasPago: z.string().trim().optional().or(z.literal("")),
   notas: z.string().trim().optional().or(z.literal("")),
 });
 

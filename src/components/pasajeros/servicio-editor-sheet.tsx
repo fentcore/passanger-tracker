@@ -67,11 +67,6 @@ export function ServicioEditorSheet({
       estado: draft.estado,
       fechaInicio: draft.fechaInicio,
       fechaFin: draft.fechaFin,
-      montoAbonado: draft.montoAbonado === "" ? undefined : Number(draft.montoAbonado),
-      estadoPago: draft.estadoPago,
-      metodoPago: draft.metodoPago,
-      montoPendiente: draft.montoPendiente === "" ? undefined : Number(draft.montoPendiente),
-      notasPago: draft.notasPago,
       notas: draft.notas,
     };
 
