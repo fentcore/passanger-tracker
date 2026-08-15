@@ -8,9 +8,15 @@
 -- directamente).
 
 -- 1) Enlazar profiles.id a auth.users.id
-alter table public.profiles
-  add constraint profiles_id_fkey
-  foreign key (id) references auth.users (id) on delete cascade;
+-- NOTA: esta constraint cruza de esquema (public -> auth), lo que rompe el
+-- diffing de "prisma migrate dev" (pide declarar el esquema "auth" con
+-- multiSchema). Se probó y se optó por NO mantenerla: el trigger de abajo
+-- ya garantiza la fila en profiles, y el borrado de usuarios se hace a mano
+-- borrando ambos lados. Si se vuelve a agregar, hay que activar multiSchema
+-- en el generator y anotar @@schema en todos los modelos.
+-- alter table public.profiles
+--   add constraint profiles_id_fkey
+--   foreign key (id) references auth.users (id) on delete cascade;
 
 -- 2) Crear perfil automáticamente para usuarios nuevos (rol ASISTENTE por defecto)
 create or replace function public.handle_new_user()
@@ -55,3 +61,4 @@ alter table public."CategoriaCopy" enable row level security;
 alter table public."Copy" enable row level security;
 alter table public."PuntoRuta" enable row level security;
 alter table public."Recorrido" enable row level security;
+alter table public."PaqueteTarifa" enable row level security;

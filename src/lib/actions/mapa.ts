@@ -14,11 +14,18 @@ const puntoSchema = z.object({
   barrioId: z.string().trim().optional().or(z.literal("")),
 });
 
+const paradaSchema = z.object({
+  tipo: z.enum(["salida", "barrio", "punto"]),
+  lat: z.number(),
+  lng: z.number(),
+  nombre: z.string().trim().min(1),
+  horario: z.string().trim().optional().or(z.literal("")),
+  barrioId: z.string().trim().optional().or(z.literal("")),
+});
+
 const recorridoSchema = z.object({
   nombre: z.string().trim().min(1),
-  origenId: z.string().trim().optional().or(z.literal("")),
-  destinoId: z.string().trim().optional().or(z.literal("")),
-  puntosRuta: z.array(z.object({ lat: z.number(), lng: z.number() })),
+  paradas: z.array(paradaSchema).min(2, "Necesitás una salida y al menos una parada"),
   duracionMin: z.number().optional(),
   distanciaKm: z.number().optional(),
 });
@@ -71,7 +78,6 @@ export async function eliminarPuntoRuta(id: string) {
 export async function listarRecorridos() {
   await requirePermiso("mapa:administrar");
   return prisma.recorrido.findMany({
-    include: { origen: true, destino: true },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -82,9 +88,7 @@ export async function crearRecorrido(input: unknown) {
   const recorrido = await prisma.recorrido.create({
     data: {
       nombre: data.nombre,
-      origenId: data.origenId || null,
-      destinoId: data.destinoId || null,
-      puntosRuta: data.puntosRuta,
+      puntosRuta: data.paradas,
       duracionMin: data.duracionMin,
       distanciaKm: data.distanciaKm,
     },
@@ -95,6 +99,29 @@ export async function crearRecorrido(input: unknown) {
     entidadId: recorrido.id,
     accion: "crear",
     descripcion: `${usuario.nombre} guardó el recorrido "${recorrido.nombre}"`,
+  });
+  revalidatePath("/mapa");
+  return recorrido;
+}
+
+export async function actualizarRecorrido(id: string, input: unknown) {
+  const usuario = await requirePermiso("mapa:administrar");
+  const data = recorridoSchema.parse(input);
+  const recorrido = await prisma.recorrido.update({
+    where: { id },
+    data: {
+      nombre: data.nombre,
+      puntosRuta: data.paradas,
+      duracionMin: data.duracionMin,
+      distanciaKm: data.distanciaKm,
+    },
+  });
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "Recorrido",
+    entidadId: recorrido.id,
+    accion: "editar",
+    descripcion: `${usuario.nombre} editó el recorrido "${recorrido.nombre}"`,
   });
   revalidatePath("/mapa");
   return recorrido;

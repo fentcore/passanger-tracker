@@ -18,10 +18,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { TrendingUp } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { TrendingUp, Package, Plus, Pencil, Trash2, Power } from "lucide-react";
 import {
   actualizarTarifa,
   aplicarPrecioATodosActivos,
+  crearPaquete,
+  actualizarPaquete,
+  cambiarEstadoPaquete,
+  eliminarPaquete,
 } from "@/lib/actions/tarifas";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -36,21 +48,102 @@ type HistorialItem = {
   creadoEn: Date | string;
   usuario: { nombre: string };
 };
+type Paquete = {
+  id: string;
+  nombre: string;
+  tramos: number;
+  precio: number;
+  activo: boolean;
+};
 
 const PORCENTAJES_RAPIDOS = [5, 10, 15, 20];
+
+const PAQUETE_VACIO = { nombre: "", tramos: "", precio: "" };
 
 export function PreciosManager({
   tarifa,
   historial,
+  paquetes,
 }: {
   tarifa: Tarifa;
   historial: HistorialItem[];
+  paquetes: Paquete[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [nuevoValor, setNuevoValor] = useState("");
   const [porcentajeCustom, setPorcentajeCustom] = useState("");
   const [precioAplicar, setPrecioAplicar] = useState("");
+
+  const [paqueteOpen, setPaqueteOpen] = useState(false);
+  const [paqueteEditando, setPaqueteEditando] = useState<Paquete | null>(null);
+  const [paqueteForm, setPaqueteForm] = useState(PAQUETE_VACIO);
+  const [paqueteError, setPaqueteError] = useState<string | null>(null);
+
+  function abrirNuevoPaquete() {
+    setPaqueteEditando(null);
+    setPaqueteForm(PAQUETE_VACIO);
+    setPaqueteError(null);
+    setPaqueteOpen(true);
+  }
+
+  function abrirEditarPaquete(p: Paquete) {
+    setPaqueteEditando(p);
+    setPaqueteForm({ nombre: p.nombre, tramos: String(p.tramos), precio: String(p.precio) });
+    setPaqueteError(null);
+    setPaqueteOpen(true);
+  }
+
+  function guardarPaquete() {
+    setPaqueteError(null);
+    if (!paqueteForm.nombre.trim() || !paqueteForm.tramos || !paqueteForm.precio) {
+      setPaqueteError("Completá nombre, tramos y precio");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const datos = {
+          nombre: paqueteForm.nombre,
+          tramos: Number(paqueteForm.tramos),
+          precio: Number(paqueteForm.precio),
+        };
+        if (paqueteEditando) {
+          await actualizarPaquete(paqueteEditando.id, datos);
+        } else {
+          await crearPaquete(datos);
+        }
+        toast.success(paqueteEditando ? "Paquete actualizado" : "Paquete creado");
+        setPaqueteOpen(false);
+        router.refresh();
+      } catch (e) {
+        setPaqueteError(e instanceof Error ? e.message : "No se pudo guardar");
+      }
+    });
+  }
+
+  function toggleActivoPaquete(p: Paquete) {
+    startTransition(async () => {
+      try {
+        await cambiarEstadoPaquete(p.id, !p.activo);
+        toast.success(!p.activo ? "Paquete activado" : "Paquete desactivado");
+        router.refresh();
+      } catch {
+        toast.error("No se pudo cambiar el estado");
+      }
+    });
+  }
+
+  function borrarPaquete(id: string) {
+    startTransition(async () => {
+      try {
+        await eliminarPaquete(id);
+        toast.success("Paquete eliminado");
+        router.refresh();
+      } catch {
+        toast.error("No se pudo eliminar");
+      }
+    });
+  }
 
   function aplicarPorcentaje(pct: number) {
     startTransition(async () => {
@@ -113,6 +206,118 @@ export function PreciosManager({
           Tarifa general vigente: acá NO se modifica el precio ya contratado por cada pasajero.
         </p>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Package className="size-4" />
+            Paquetes
+          </CardTitle>
+          <Dialog open={paqueteOpen} onOpenChange={setPaqueteOpen}>
+            <DialogTrigger
+              render={<Button size="sm" variant="outline" className="rounded-full gap-1.5" onClick={abrirNuevoPaquete} />}
+            >
+              <Plus className="size-4" />
+              Nuevo
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{paqueteEditando ? "Editar paquete" : "Nuevo paquete"}</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label>Nombre</Label>
+                  <Input
+                    className="h-11"
+                    value={paqueteForm.nombre}
+                    onChange={(e) => setPaqueteForm({ ...paqueteForm, nombre: e.target.value })}
+                    placeholder="Ej: Promo 20 tramos"
+                    autoFocus
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Tramos</Label>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      className="h-11"
+                      value={paqueteForm.tramos}
+                      onChange={(e) => setPaqueteForm({ ...paqueteForm, tramos: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Precio</Label>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      className="h-11"
+                      value={paqueteForm.precio}
+                      onChange={(e) => setPaqueteForm({ ...paqueteForm, precio: e.target.value })}
+                    />
+                  </div>
+                </div>
+                {paqueteError && <p className="text-sm text-destructive">{paqueteError}</p>}
+              </div>
+              <DialogFooter>
+                <Button className="h-11 w-full" disabled={pending} onClick={guardarPaquete}>
+                  Guardar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {paquetes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Todavía no cargaste paquetes.</p>
+          ) : (
+            paquetes.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-2 rounded-xl border p-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{p.nombre}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {p.tramos} tramo{p.tramos === 1 ? "" : "s"} · ${p.precio.toLocaleString("es-AR")}
+                    {!p.activo && " · Inactivo"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button size="icon" variant="ghost" className="size-8" onClick={() => abrirEditarPaquete(p)}>
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8"
+                    disabled={pending}
+                    onClick={() => toggleActivoPaquete(p)}
+                  >
+                    <Power className="size-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger render={<Button size="icon" variant="ghost" className="size-8 text-destructive" />}>
+                      <Trash2 className="size-4" />
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar "{p.nombre}"?</AlertDialogTitle>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => borrarPaquete(p.id)} className="bg-destructive text-white">
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

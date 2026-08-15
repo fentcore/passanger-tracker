@@ -57,6 +57,7 @@ export const pasajeroConServiciosSchema = z.object({
 
 export const barrioSchema = z.object({
   nombre: z.string().trim().min(1, "El nombre es obligatorio"),
+  color: z.string().trim().optional().or(z.literal("")),
 });
 
 export const notaSchema = z.object({

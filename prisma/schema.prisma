@@ -74,6 +74,7 @@ model Barrio {
   activo    Boolean    @default(true)
   lat       Float?
   lng       Float?
+  color     String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -187,6 +188,17 @@ model Tarifa {
   updatedAt DateTime          @updatedAt
 
   historial HistorialPrecio[]
+}
+
+model PaqueteTarifa {
+  id        String   @id @default(cuid())
+  nombre    String
+  tramos    Int
+  precio    Float
+  activo    Boolean  @default(true)
+  orden     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model HistorialPrecio {

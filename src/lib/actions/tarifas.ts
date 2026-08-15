@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePermiso } from "@/lib/auth-helpers";
 import { registrarCambio } from "@/lib/actions/historial";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 export async function obtenerTarifaActiva() {
   await requirePermiso("tarifa:administrar");
@@ -133,6 +134,84 @@ export async function aplicarPrecioATodosActivos(precio: number) {
   revalidatePath("/precios");
   revalidatePath("/pasajeros");
   return resultado;
+}
+
+// --- Paquetes (promos) ---
+
+const paqueteSchema = z.object({
+  nombre: z.string().trim().min(1, "El nombre es obligatorio"),
+  tramos: z.coerce.number().int().min(1, "Tiene que ser al menos 1"),
+  precio: z.coerce.number().min(0, "El precio no puede ser negativo"),
+});
+
+export async function listarPaquetes() {
+  await requirePermiso("tarifa:administrar");
+  return prisma.paqueteTarifa.findMany({ orderBy: [{ orden: "asc" }, { tramos: "asc" }] });
+}
+
+export async function crearPaquete(input: unknown) {
+  const usuario = await requirePermiso("tarifa:administrar");
+  const data = paqueteSchema.parse(input);
+  const paquete = await prisma.paqueteTarifa.create({
+    data: { nombre: data.nombre, tramos: data.tramos, precio: data.precio },
+  });
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "PaqueteTarifa",
+    entidadId: paquete.id,
+    accion: "crear",
+    descripcion: `${usuario.nombre} creó el paquete "${paquete.nombre}" (${paquete.tramos} tramos, $${paquete.precio})`,
+  });
+  revalidatePath("/precios");
+  return paquete;
+}
+
+export async function actualizarPaquete(id: string, input: unknown) {
+  const usuario = await requirePermiso("tarifa:administrar");
+  const data = paqueteSchema.parse(input);
+  const paquete = await prisma.paqueteTarifa.update({
+    where: { id },
+    data: { nombre: data.nombre, tramos: data.tramos, precio: data.precio },
+  });
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "PaqueteTarifa",
+    entidadId: paquete.id,
+    accion: "editar",
+    descripcion: `${usuario.nombre} editó el paquete "${paquete.nombre}"`,
+  });
+  revalidatePath("/precios");
+  return paquete;
+}
+
+export async function cambiarEstadoPaquete(id: string, activo: boolean) {
+  const usuario = await requirePermiso("tarifa:administrar");
+  const paquete = await prisma.paqueteTarifa.update({ where: { id }, data: { activo } });
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "PaqueteTarifa",
+    entidadId: paquete.id,
+    accion: "editar",
+    campo: "activo",
+    valorNuevo: String(activo),
+    descripcion: `${usuario.nombre} ${activo ? "activó" : "desactivó"} el paquete "${paquete.nombre}"`,
+  });
+  revalidatePath("/precios");
+  return paquete;
+}
+
+export async function eliminarPaquete(id: string) {
+  const usuario = await requirePermiso("tarifa:administrar");
+  const paquete = await prisma.paqueteTarifa.delete({ where: { id } });
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "PaqueteTarifa",
+    entidadId: id,
+    accion: "eliminar",
+    descripcion: `${usuario.nombre} eliminó el paquete "${paquete.nombre}"`,
+  });
+  revalidatePath("/precios");
+  return paquete;
 }
 
 async function obtenerTarifaActivaInterna() {

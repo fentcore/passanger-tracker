@@ -13,23 +13,74 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Power, MapPinned } from "lucide-react";
+import { Plus, Pencil, Power, MapPinned, Check } from "lucide-react";
 import {
   crearBarrio,
   actualizarBarrio,
   cambiarEstadoBarrio,
 } from "@/lib/actions/barrios";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-type Barrio = { id: string; nombre: string; activo: boolean };
+type Barrio = { id: string; nombre: string; activo: boolean; color: string | null };
+
+export const PALETA_COLORES = [
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#eab308",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#d946ef",
+  "#ec4899",
+];
+
+function SelectorColor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium">Color</span>
+      <div className="flex flex-wrap gap-2">
+        {PALETA_COLORES.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(c)}
+            className={cn(
+              "flex size-8 items-center justify-center rounded-full border-2 transition-transform",
+              value === c ? "border-foreground scale-110" : "border-transparent"
+            )}
+            style={{ backgroundColor: c }}
+            aria-label={c}
+          >
+            {value === c && <Check className="size-4 text-white drop-shadow" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
   const [nombreNuevo, setNombreNuevo] = useState("");
+  const [colorNuevo, setColorNuevo] = useState(PALETA_COLORES[0]);
   const [editando, setEditando] = useState<Barrio | null>(null);
   const [nombreEdit, setNombreEdit] = useState("");
+  const [colorEdit, setColorEdit] = useState(PALETA_COLORES[0]);
   const [error, setError] = useState<string | null>(null);
 
   function handleCrear() {
@@ -40,13 +91,14 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
     }
     startTransition(async () => {
       try {
-        const resultado = await crearBarrio({ nombre: nombreNuevo });
+        const resultado = await crearBarrio({ nombre: nombreNuevo, color: colorNuevo });
         if (resultado && "error" in resultado) {
           setError(resultado.error);
           return;
         }
         toast.success("Barrio creado");
         setNombreNuevo("");
+        setColorNuevo(PALETA_COLORES[0]);
         setCreateOpen(false);
         router.refresh();
       } catch (e) {
@@ -64,7 +116,10 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
     }
     startTransition(async () => {
       try {
-        const resultado = await actualizarBarrio(editando.id, { nombre: nombreEdit });
+        const resultado = await actualizarBarrio(editando.id, {
+          nombre: nombreEdit,
+          color: colorEdit,
+        });
         if (resultado && "error" in resultado) {
           setError(resultado.error);
           return;
@@ -103,13 +158,16 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
             <DialogHeader>
               <DialogTitle>Nuevo barrio</DialogTitle>
             </DialogHeader>
-            <Input
-              className="h-11"
-              placeholder="Nombre del barrio"
-              value={nombreNuevo}
-              onChange={(e) => setNombreNuevo(e.target.value)}
-              autoFocus
-            />
+            <div className="flex flex-col gap-4">
+              <Input
+                className="h-11"
+                placeholder="Nombre del barrio"
+                value={nombreNuevo}
+                onChange={(e) => setNombreNuevo(e.target.value)}
+                autoFocus
+              />
+              <SelectorColor value={colorNuevo} onChange={setColorNuevo} />
+            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <DialogFooter>
               <Button className="h-11 w-full" disabled={pending} onClick={handleCrear}>
@@ -132,7 +190,11 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
               key={b.id}
               className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-4 shadow-sm"
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className="size-4 shrink-0 rounded-full border"
+                  style={{ backgroundColor: b.color ?? "#d4d4d8" }}
+                />
                 <span className="font-medium truncate">{b.nombre}</span>
                 <Badge
                   variant="secondary"
@@ -153,6 +215,7 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
                   onClick={() => {
                     setEditando(b);
                     setNombreEdit(b.nombre);
+                    setColorEdit(b.color ?? PALETA_COLORES[0]);
                     setError(null);
                   }}
                 >
@@ -178,11 +241,14 @@ export function BarriosManager({ barrios }: { barrios: Barrio[] }) {
           <DialogHeader>
             <DialogTitle>Editar barrio</DialogTitle>
           </DialogHeader>
-          <Input
-            className="h-11"
-            value={nombreEdit}
-            onChange={(e) => setNombreEdit(e.target.value)}
-          />
+          <div className="flex flex-col gap-4">
+            <Input
+              className="h-11"
+              value={nombreEdit}
+              onChange={(e) => setNombreEdit(e.target.value)}
+            />
+            <SelectorColor value={colorEdit} onChange={setColorEdit} />
+          </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
             <Button className="h-11 w-full" disabled={pending} onClick={handleEditar}>

@@ -18,7 +18,9 @@ export async function crearBarrio(input: unknown) {
   const usuario = await requirePermiso("barrio:administrar");
   const data = barrioSchema.parse(input);
   try {
-    const barrio = await prisma.barrio.create({ data: { nombre: data.nombre } });
+    const barrio = await prisma.barrio.create({
+      data: { nombre: data.nombre, color: data.color || null },
+    });
     await registrarCambio({
       usuarioId: usuario.id,
       entidad: "Barrio",
@@ -43,14 +45,14 @@ export async function actualizarBarrio(id: string, input: unknown) {
   try {
     const barrio = await prisma.barrio.update({
       where: { id },
-      data: { nombre: data.nombre },
+      data: { nombre: data.nombre, color: data.color || null },
     });
     await registrarCambio({
       usuarioId: usuario.id,
       entidad: "Barrio",
       entidadId: barrio.id,
       accion: "editar",
-      descripcion: `${usuario.nombre} renombró un barrio a "${barrio.nombre}"`,
+      descripcion: `${usuario.nombre} editó el barrio "${barrio.nombre}"`,
     });
     revalidatePath("/barrios");
     revalidatePath("/");
