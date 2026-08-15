@@ -118,7 +118,7 @@ export function BottomNav() {
 export function TopNav() {
   const pathname = usePathname();
   return (
-    <nav className="hidden md:flex items-center gap-1 overflow-x-auto">
+    <nav className="hidden md:flex flex-wrap items-center gap-1">
       {TODOS_LOS_LINKS.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
         return (

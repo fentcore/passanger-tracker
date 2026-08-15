@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -11,6 +12,8 @@ import {
 import { History } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { LimpiarRegistroDialog } from "@/components/limpieza/limpiar-registro-dialog";
+import { limpiarHistorial } from "@/lib/actions/historial";
 
 type HistorialItem = {
   id: string;
@@ -30,6 +33,7 @@ const ACCION_LABEL: Record<string, string> = {
 };
 
 export function HistorialViewer({ items }: { items: HistorialItem[] }) {
+  const router = useRouter();
   const [usuario, setUsuario] = useState("TODOS");
   const [entidad, setEntidad] = useState("TODOS");
   const [accion, setAccion] = useState("TODOS");
@@ -57,11 +61,19 @@ export function HistorialViewer({ items }: { items: HistorialItem[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-bold">Historial de cambios</h1>
-        <p className="text-sm text-muted-foreground">
-          Quién modificó qué y cuándo, en todos los dispositivos
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Historial de cambios</h1>
+          <p className="text-sm text-muted-foreground">
+            Quién modificó qué y cuándo, en todos los dispositivos
+          </p>
+        </div>
+        <LimpiarRegistroDialog
+          titulo="Limpiar historial"
+          descripcion="Elegí qué registros del historial querés borrar permanentemente."
+          accion={limpiarHistorial}
+          onLimpio={() => router.refresh()}
+        />
       </div>
 
       <div className="grid grid-cols-3 gap-2">

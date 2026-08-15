@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireUsuario } from "@/lib/auth-helpers";
 import { BottomNav, TopNav } from "@/components/nav";
 import { UserMenu } from "@/components/user-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Bus } from "lucide-react";
 import Link from "next/link";
@@ -29,8 +30,15 @@ export default async function AppLayout({
             </span>
             <span className="hidden sm:inline">Passenger Tracker</span>
           </Link>
-          <TopNav />
-          <UserMenu nombre={user.nombre} rol={user.rol} />
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <UserMenu nombre={user.nombre} rol={user.rol} />
+          </div>
+        </div>
+        <div className="hidden md:block border-t">
+          <div className="mx-auto max-w-4xl px-4 py-2">
+            <TopNav />
+          </div>
         </div>
       </header>
 

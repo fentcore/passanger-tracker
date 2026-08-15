@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requirePermiso } from "@/lib/auth-helpers";
+import { revalidatePath } from "next/cache";
 
 export async function registrarCambio(params: {
   usuarioId: string;
@@ -43,4 +44,25 @@ export async function listarHistorial(opts?: {
     orderBy: { creadoEn: "desc" },
     take: 300,
   });
+}
+
+export async function limpiarHistorial(antes?: Date) {
+  const usuario = await requirePermiso("historial:ver");
+
+  const { count } = await prisma.historialCambio.deleteMany({
+    where: antes ? { creadoEn: { lte: antes } } : {},
+  });
+
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "HistorialCambio",
+    entidadId: "limpieza",
+    accion: "eliminar",
+    descripcion: antes
+      ? `${usuario.nombre} limpió ${count} registro(s) del historial anteriores a ${antes.toLocaleDateString("es-AR")}`
+      : `${usuario.nombre} limpió todo el historial (${count} registro(s))`,
+  });
+
+  revalidatePath("/historial");
+  return { count };
 }

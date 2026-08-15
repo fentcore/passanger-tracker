@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { ArchiveRestore, Archive } from "lucide-react";
 import { restaurarPasajero } from "@/lib/actions/pasajeros";
 import { restaurarServicio } from "@/lib/actions/servicios";
+import { limpiarArchivados } from "@/lib/actions/archivados";
 import { DIA_LABEL, DiaSemana } from "@/lib/constants";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { LimpiarRegistroDialog } from "@/components/limpieza/limpiar-registro-dialog";
 
 type PasajeroArchivado = { id: string; nombre: string; archivedAt: Date | string | null };
 type ServicioArchivado = {
@@ -58,11 +60,19 @@ export function ArchivadosManager({
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-bold">Archivados</h1>
-        <p className="text-sm text-muted-foreground">
-          Nada se elimina para siempre — restaurá cuando lo necesites.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Archivados</h1>
+          <p className="text-sm text-muted-foreground">
+            Restaurá cuando lo necesites, o limpiá lo que ya no te sirva.
+          </p>
+        </div>
+        <LimpiarRegistroDialog
+          titulo="Limpiar archivados"
+          descripcion="Elegí qué pasajeros y servicios archivados querés borrar permanentemente. Esto no afecta a los activos."
+          accion={limpiarArchivados}
+          onLimpio={() => router.refresh()}
+        />
       </div>
 
       <div className="flex flex-col gap-2.5">
