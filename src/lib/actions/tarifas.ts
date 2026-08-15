@@ -15,15 +15,6 @@ export async function obtenerTarifaActiva() {
   return tarifa;
 }
 
-export async function listarHistorialPrecios() {
-  await requirePermiso("tarifa:administrar");
-  return prisma.historialPrecio.findMany({
-    include: { usuario: true, tarifa: true },
-    orderBy: { creadoEn: "desc" },
-    take: 200,
-  });
-}
-
 /**
  * Actualiza la tarifa general por un valor fijo nuevo o por un porcentaje de aumento.
  * NO toca el precio contratado de los pasajeros existentes.
@@ -109,33 +100,6 @@ export async function aplicarPrecioAContratados(servicioIds: string[], precio: n
   return resultado;
 }
 
-/**
- * Aplica un precio contratado a TODOS los servicios activos (no archivados).
- * Acción explícita, separada de la actualización de la tarifa general.
- */
-export async function aplicarPrecioATodosActivos(precio: number) {
-  const usuario = await requirePermiso("tarifa:administrar");
-
-  const resultado = await prisma.servicio.updateMany({
-    where: { archivedAt: null, estado: { not: "INACTIVO" } },
-    data: { precioContratado: precio },
-  });
-
-  await registrarCambio({
-    usuarioId: usuario.id,
-    entidad: "Servicio",
-    entidadId: "masivo",
-    accion: "editar",
-    campo: "precioContratado",
-    valorNuevo: String(precio),
-    descripcion: `${usuario.nombre} aplicó el precio contratado $${precio} a todos los servicios activos (${resultado.count})`,
-  });
-
-  revalidatePath("/precios");
-  revalidatePath("/pasajeros");
-  return resultado;
-}
-
 // --- Paquetes (promos) ---
 
 const paqueteSchema = z.object({
@@ -212,6 +176,40 @@ export async function eliminarPaquete(id: string) {
   });
   revalidatePath("/precios");
   return paquete;
+}
+
+/**
+ * Aplica el mismo porcentaje de aumento/descuento al precio de todos los
+ * paquetes existentes, para trasladarles el mismo cambio que a la tarifa
+ * general sin perder la diferencia de precio entre paquetes.
+ */
+export async function actualizarPreciosPaquetes(porcentaje: number) {
+  const usuario = await requirePermiso("tarifa:administrar");
+
+  const paquetes = await prisma.paqueteTarifa.findMany();
+  if (paquetes.length === 0) return { count: 0 };
+
+  await prisma.$transaction(
+    paquetes.map((p) =>
+      prisma.paqueteTarifa.update({
+        where: { id: p.id },
+        data: { precio: Math.round(p.precio * (1 + porcentaje / 100) * 100) / 100 },
+      })
+    )
+  );
+
+  await registrarCambio({
+    usuarioId: usuario.id,
+    entidad: "PaqueteTarifa",
+    entidadId: "masivo",
+    accion: "editar",
+    campo: "precio",
+    valorNuevo: `${porcentaje > 0 ? "+" : ""}${porcentaje}%`,
+    descripcion: `${usuario.nombre} actualizó el precio de todos los paquetes (${porcentaje > 0 ? "+" : ""}${porcentaje}%)`,
+  });
+
+  revalidatePath("/precios");
+  return { count: paquetes.length };
 }
 
 async function obtenerTarifaActivaInterna() {

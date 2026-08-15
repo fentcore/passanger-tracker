@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -26,29 +27,19 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TrendingUp, Package, Plus, Pencil, Trash2, Power } from "lucide-react";
+import { TrendingUp, Package, Plus, Pencil, Trash2, Power, Copy, ArrowRight } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import {
   actualizarTarifa,
-  aplicarPrecioATodosActivos,
+  actualizarPreciosPaquetes,
   crearPaquete,
   actualizarPaquete,
   cambiarEstadoPaquete,
   eliminarPaquete,
 } from "@/lib/actions/tarifas";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 
 type Tarifa = { id: string; nombre: string; precio: number };
-type HistorialItem = {
-  id: string;
-  precioAnterior: number;
-  precioNuevo: number;
-  porcentaje: number | null;
-  creadoEn: Date | string;
-  usuario: { nombre: string };
-};
 type Paquete = {
   id: string;
   nombre: string;
@@ -61,20 +52,27 @@ const PORCENTAJES_RAPIDOS = [20, 15, 10, 5, -5, -10, -15, -20];
 
 const PAQUETE_VACIO = { nombre: "", tramos: "", precio: "" };
 
+function generarMensajeAviso(precioActual: number, precioNuevo: number) {
+  return `Hola! Te contamos que a partir de ahora el valor del viaje va a ser de $${precioNuevo.toLocaleString(
+    "es-AR"
+  )} (antes $${precioActual.toLocaleString(
+    "es-AR"
+  )}). Gracias por tu comprensión y por seguir confiando en nosotros. Cualquier consulta, quedamos a disposición. ¡Saludos!`;
+}
+
 export function PreciosManager({
   tarifa,
-  historial,
   paquetes,
 }: {
   tarifa: Tarifa;
-  historial: HistorialItem[];
   paquetes: Paquete[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [tab, setTab] = useState<"porcentaje" | "fijo">("porcentaje");
   const [nuevoValor, setNuevoValor] = useState("");
   const [porcentajeCustom, setPorcentajeCustom] = useState("");
-  const [precioAplicar, setPrecioAplicar] = useState("");
+  const [porcentajeCalc, setPorcentajeCalc] = useState<number | null>(null);
 
   const [paqueteOpen, setPaqueteOpen] = useState(false);
   const [paqueteEditando, setPaqueteEditando] = useState<Paquete | null>(null);
@@ -146,16 +144,13 @@ export function PreciosManager({
     });
   }
 
-  function aplicarPorcentaje(pct: number) {
-    startTransition(async () => {
-      try {
-        await actualizarTarifa({ porcentaje: pct });
-        toast.success(`Tarifa actualizada (${pct > 0 ? "+" : ""}${pct}%)`);
-        router.refresh();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "No se pudo actualizar");
-      }
-    });
+  function calcularPersonalizado() {
+    const pct = Number(porcentajeCustom);
+    if (!porcentajeCustom.trim() || Number.isNaN(pct)) {
+      toast.error("Ingresá un porcentaje válido");
+      return;
+    }
+    setPorcentajeCalc(pct);
   }
 
   function aplicarValorFijo() {
@@ -164,15 +159,11 @@ export function PreciosManager({
       toast.error("Ingresá un valor válido");
       return;
     }
-    aplicarValor(valor);
-    setNuevoValor("");
-  }
-
-  function aplicarValor(valor: number) {
     startTransition(async () => {
       try {
         await actualizarTarifa({ precioNuevo: valor });
         toast.success("Tarifa actualizada");
+        setNuevoValor("");
         router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "No se pudo actualizar");
@@ -180,25 +171,50 @@ export function PreciosManager({
     });
   }
 
-  function aplicarPorcentajePersonalizado() {
-    const pct = Number(porcentajeCustom);
-    if (!pct) {
-      toast.error("Ingresá un porcentaje válido");
-      return;
+  // Precio previsto según lo que se esté mirando en la calculadora, sin
+  // guardar nada todavía. Solo "Valor fijo" -> Aplicar modifica la tarifa.
+  let previsto: { precio: number; porcentaje: number } | null = null;
+  if (tab === "porcentaje") {
+    if (porcentajeCalc != null && !Number.isNaN(porcentajeCalc)) {
+      previsto = {
+        precio: Math.round(tarifa.precio * (1 + porcentajeCalc / 100) * 100) / 100,
+        porcentaje: porcentajeCalc,
+      };
     }
-    aplicarPorcentaje(pct);
-    setPorcentajeCustom("");
+  } else {
+    const val = Number(nuevoValor);
+    if (nuevoValor.trim() && !Number.isNaN(val) && val > 0) {
+      previsto = {
+        precio: val,
+        porcentaje:
+          tarifa.precio > 0 ? Math.round(((val - tarifa.precio) / tarifa.precio) * 10000) / 100 : 0,
+      };
+    }
   }
 
-  function handleAplicarATodos() {
-    const valor = Number(precioAplicar || tarifa.precio);
+  const mensajeAviso = previsto ? generarMensajeAviso(tarifa.precio, previsto.precio) : "";
+
+  function usarValorCalculado() {
+    if (!previsto) return;
+    setNuevoValor(String(previsto.precio));
+    setTab("fijo");
+  }
+
+  function copiarMensaje() {
+    if (!previsto) return;
+    navigator.clipboard.writeText(mensajeAviso);
+    toast.success("Mensaje copiado");
+  }
+
+  function handleActualizarPaquetes() {
+    if (!previsto) return;
     startTransition(async () => {
       try {
-        const r = await aplicarPrecioATodosActivos(valor);
-        toast.success(`Precio contratado actualizado en ${r.count} servicios`);
+        const r = await actualizarPreciosPaquetes(previsto!.porcentaje);
+        toast.success(`Paquetes actualizados (${r.count})`);
         router.refresh();
-      } catch {
-        toast.error("No se pudo aplicar");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "No se pudo actualizar");
       }
     });
   }
@@ -334,21 +350,24 @@ export function PreciosManager({
             Tarifa actual: ${tarifa.precio.toLocaleString("es-AR")}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="porcentaje">
+        <CardContent className="flex flex-col gap-3">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as "porcentaje" | "fijo")}>
             <TabsList className="w-full">
-              <TabsTrigger value="porcentaje" className="flex-1">Por porcentaje</TabsTrigger>
+              <TabsTrigger value="porcentaje" className="flex-1">Calculadora (%)</TabsTrigger>
               <TabsTrigger value="fijo" className="flex-1">Valor fijo</TabsTrigger>
             </TabsList>
             <TabsContent value="porcentaje" className="flex flex-col gap-3 pt-3">
+              <p className="text-xs text-muted-foreground">
+                Elegí un porcentaje para ver a cuánto quedaría el precio. Todavía no cambia nada.
+              </p>
               <div className="flex flex-wrap gap-2">
                 {PORCENTAJES_RAPIDOS.map((p) => (
                   <Button
                     key={p}
-                    variant="outline"
-                    disabled={pending}
-                    onClick={() => aplicarPorcentaje(p)}
-                    className={`h-11 rounded-full ${p < 0 ? "text-destructive" : ""}`}
+                    type="button"
+                    variant={porcentajeCalc === p ? "default" : "outline"}
+                    onClick={() => setPorcentajeCalc(p)}
+                    className={`h-11 rounded-full ${p < 0 && porcentajeCalc !== p ? "text-destructive" : ""}`}
                   >
                     {p > 0 ? "+" : ""}
                     {p}%
@@ -364,12 +383,15 @@ export function PreciosManager({
                   value={porcentajeCustom}
                   onChange={(e) => setPorcentajeCustom(e.target.value)}
                 />
-                <Button className="h-11" disabled={pending} onClick={aplicarPorcentajePersonalizado}>
-                  Aplicar
+                <Button type="button" variant="outline" className="h-11" onClick={calcularPersonalizado}>
+                  Calcular
                 </Button>
               </div>
             </TabsContent>
             <TabsContent value="fijo" className="flex flex-col gap-3 pt-3">
+              <p className="text-xs text-muted-foreground">
+                Usalo cuando ya sabés el precio exacto al que vas a actualizar. "Aplicar" sí guarda el cambio.
+              </p>
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -385,83 +407,77 @@ export function PreciosManager({
               </div>
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Aplicar a pasajeros</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">
-            Esto SÍ modifica el precio contratado de cada pasajero. Usalo solo cuando quieras
-            trasladar el aumento a todos.
-          </p>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              inputMode="decimal"
-              className="h-11"
-              placeholder={`Precio a aplicar (por defecto $${tarifa.precio})`}
-              value={precioAplicar}
-              onChange={(e) => setPrecioAplicar(e.target.value)}
-            />
-            <AlertDialog>
-              <AlertDialogTrigger render={<Button variant="destructive" className="h-11 shrink-0" />}>
-                Aplicar a todos
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Aplicar a todos los pasajeros activos?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Se va a actualizar el precio contratado de todos los servicios activos a $
-                    {precioAplicar || tarifa.precio}. Esta acción queda registrada en el historial.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleAplicarATodos}>Confirmar</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Historial de precios</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {historial.length === 0 && (
-            <p className="text-sm text-muted-foreground">Todavía no hay cambios registrados.</p>
-          )}
-          {historial.map((h) => (
-            <div key={h.id} className="flex items-center justify-between gap-2 border-b py-2 text-sm last:border-0">
-              <div className="min-w-0">
-                <p>
-                  ${h.precioAnterior.toLocaleString("es-AR")} → ${h.precioNuevo.toLocaleString("es-AR")}
-                  {h.porcentaje != null && (
-                    <span className="text-muted-foreground"> ({h.porcentaje > 0 ? "+" : ""}{h.porcentaje}%)</span>
-                  )}
+          {previsto && (
+            <div className="rounded-xl border p-3 flex flex-col gap-3 bg-muted/30">
+              <div>
+                <p className="text-sm font-semibold">
+                  Precio previsto: ${previsto.precio.toLocaleString("es-AR")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {h.usuario.nombre} · {format(new Date(h.creadoEn), "d MMM yyyy HH:mm", { locale: es })}
+                  {previsto.porcentaje > 0 ? "+" : ""}
+                  {previsto.porcentaje}% respecto al actual (${tarifa.precio.toLocaleString("es-AR")})
                 </p>
               </div>
-              {h.precioAnterior !== tarifa.precio && (
+
+              {tab === "porcentaje" && (
                 <Button
+                  type="button"
                   size="sm"
                   variant="outline"
-                  className="h-8 shrink-0 rounded-full"
-                  disabled={pending}
-                  onClick={() => aplicarValor(h.precioAnterior)}
+                  className="self-start rounded-full gap-1.5"
+                  onClick={usarValorCalculado}
                 >
-                  Volver a ${h.precioAnterior.toLocaleString("es-AR")}
+                  <ArrowRight className="size-3.5" />
+                  Usar este valor en &quot;Valor fijo&quot;
                 </Button>
               )}
+
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs">Mensaje para avisar a los pasajeros</Label>
+                <Textarea readOnly value={mensajeAviso} className="text-sm bg-background" rows={5} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 self-start rounded-full gap-1.5"
+                  onClick={copiarMensaje}
+                >
+                  <Copy className="size-4" />
+                  Copiar mensaje
+                </Button>
+              </div>
+
+              <AlertDialog>
+                <AlertDialogTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-10 self-start rounded-full gap-1.5"
+                      disabled={pending}
+                    />
+                  }
+                >
+                  <Package className="size-4" />
+                  Actualizar paquetes ({previsto.porcentaje > 0 ? "+" : ""}
+                  {previsto.porcentaje}%)
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Actualizar el precio de todos los paquetes?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Se le va a aplicar {previsto.porcentaje > 0 ? "+" : ""}
+                      {previsto.porcentaje}% al precio de cada paquete cargado.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleActualizarPaquetes}>Confirmar</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
-          ))}
+          )}
         </CardContent>
       </Card>
     </div>
