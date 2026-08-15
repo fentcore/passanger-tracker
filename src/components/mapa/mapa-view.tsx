@@ -361,13 +361,23 @@ export function MapaView({
 
   async function copiarRecorrido(r: Recorrido) {
     const stops = (r.puntosRuta as Parada[] | null) ?? [];
+    const duracionYDistancia = [
+      r.distanciaKm != null ? `${r.distanciaKm} km` : null,
+      r.duracionMin != null ? `~${r.duracionMin} min` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
     const texto = [
-      r.nombre,
-      r.distanciaKm != null || r.duracionMin != null
-        ? `${r.distanciaKm != null ? `${r.distanciaKm} km` : ""}${r.distanciaKm != null && r.duracionMin != null ? " · " : ""}${r.duracionMin != null ? `~${r.duracionMin} min` : ""}`
-        : null,
+      `🚌 *${r.nombre}*`,
+      duracionYDistancia || null,
       "",
-      ...stops.map((s, i) => `${i === 0 ? "🚏" : `${i}.`} ${s.nombre}${s.horario ? ` - ${s.horario}` : ""}`),
+      "*Horarios:*",
+      ...stops.map((s, i) => {
+        const hora = s.horario ? `${s.horario} hs` : "—";
+        const parada = i === 0 ? `Salida — ${s.nombre}` : `${i}. ${s.nombre}`;
+        return `${hora}  ${parada}`;
+      }),
     ]
       .filter((l) => l !== null)
       .join("\n");
