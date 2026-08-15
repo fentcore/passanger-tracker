@@ -299,7 +299,7 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
                   className="h-8 rounded-full"
                   onClick={() => elegirPasajeroActivo(-1)}
                 >
-                  {pasajero.nombre.trim() || "Principal"}
+                  {pasajero.nombre.trim() || "Pasajero 1"}
                 </Button>
                 {otros.map((o, i) => (
                   <Button
