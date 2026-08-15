@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Accion, can } from "@/lib/permissions";
@@ -9,7 +10,10 @@ export type UsuarioSesion = {
   rol: "ADMIN" | "ASISTENTE";
 };
 
-export async function requireUsuario(): Promise<UsuarioSesion> {
+// Memoizado por request: layout, page y varias server actions llaman esto en
+// paralelo para la misma carga de página, y sin cache() cada llamado repetía
+// el viaje de red a Supabase Auth + la consulta a Postgres.
+export const requireUsuario = cache(async (): Promise<UsuarioSesion> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -30,7 +34,7 @@ export async function requireUsuario(): Promise<UsuarioSesion> {
     email: perfil.email,
     rol: perfil.rol,
   };
-}
+});
 
 export async function requirePermiso(accion: Accion): Promise<UsuarioSesion> {
   const usuario = await requireUsuario();
