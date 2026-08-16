@@ -11,6 +11,7 @@ const copySchema = z.object({
   titulo: z.string().trim().min(1, "El título es obligatorio"),
   contenido: z.string().trim().min(1, "El mensaje no puede estar vacío"),
   categoriaId: z.string().trim().optional().or(z.literal("")),
+  imagenUrl: z.string().trim().optional().or(z.literal("")),
 });
 
 const categoriaSchema = z.object({
@@ -99,6 +100,7 @@ export async function crearCopy(input: unknown) {
       titulo: data.titulo,
       contenido: data.contenido,
       categoriaId: data.categoriaId || null,
+      imagenUrl: data.imagenUrl || null,
     },
   });
   await registrarCambio({
@@ -121,6 +123,7 @@ export async function actualizarCopy(id: string, input: unknown) {
       titulo: data.titulo,
       contenido: data.contenido,
       categoriaId: data.categoriaId || null,
+      imagenUrl: data.imagenUrl || null,
     },
   });
   await registrarCambio({

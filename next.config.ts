@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
     staleTimes: {
       dynamic: 0,
     },
+    // Las imágenes de los copys viajan como data URL (base64) en el body de
+    // la server action; el límite por defecto (1mb) se queda corto.
+    serverActions: {
+      bodySizeLimit: "8mb",
+    },
   },
 };
 

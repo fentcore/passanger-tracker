@@ -71,7 +71,7 @@ export function EditarPasajeroDialog({
         onOpenChange(v);
       }}
     >
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar pasajero</DialogTitle>
         </DialogHeader>

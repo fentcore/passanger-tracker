@@ -268,6 +268,8 @@ model Copy {
   id          String         @id @default(cuid())
   titulo      String
   contenido   String
+  // Data URL (base64) de una imagen opcional para acompañar el mensaje.
+  imagenUrl   String?
   categoria   CategoriaCopy? @relation(fields: [categoriaId], references: [id])
   categoriaId String?
   createdAt   DateTime       @default(now())

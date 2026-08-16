@@ -47,18 +47,34 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
 }) {
+  // El footer (si hay uno) queda fijo abajo y el resto del contenido scrollea
+  // en su propio contenedor. Antes todo -- header, cuerpo y footer -- vivía
+  // en el mismo contenedor con scroll y el footer se "pegaba" abajo con
+  // position: sticky; eso hacía que en el primer render (antes de que el
+  // Textarea/Select terminen de medirse) el footer apareciera arriba del
+  // resto por un instante, hasta que el layout se acomodaba.
+  const items = React.Children.toArray(children)
+  const footerIndex = items.findIndex(
+    (child) => React.isValidElement(child) && child.type === DialogFooter
+  )
+  const footer = footerIndex >= 0 ? items[footerIndex] : null
+  const body = footerIndex >= 0 ? items.filter((_, i) => i !== footerIndex) : items
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[90vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
       >
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+          {body}
+        </div>
+        {footer}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
@@ -102,7 +118,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "sticky bottom-0 -mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted p-4 sm:flex-row sm:justify-end",
+        "flex shrink-0 flex-col-reverse gap-2 border-t bg-muted p-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}

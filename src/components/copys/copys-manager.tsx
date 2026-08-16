@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,8 @@ import {
   Check,
   LayoutList,
   LayoutGrid,
+  Image as ImageIcon,
+  X,
 } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { PALETA_COLORES } from "@/components/barrios/barrios-manager";
@@ -62,9 +64,139 @@ type CopyItem = {
   id: string;
   titulo: string;
   contenido: string;
+  imagenUrl: string | null;
   categoriaId: string | null;
   categoria: Categoria | null;
 };
+
+// Redimensiona/comprime la imagen en el navegador antes de guardarla como
+// data URL, para no mandar fotos de varios MB tal cual al servidor.
+function comprimirImagen(file: File, maxDim = 1280, calidad = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("No se pudo procesar la imagen"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", calidad));
+      };
+      img.onerror = () => reject(new Error("No se pudo leer la imagen"));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+    reader.readAsDataURL(file);
+  });
+}
+
+// El Clipboard API de Chrome solo admite escribir image/png (no jpeg), así
+// que reconvertimos acá justo antes de copiar. Guardamos jpeg en la base
+// porque pesa bastante menos.
+function blobAPng(blob: Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error("No se pudo procesar la imagen"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((pngBlob) => {
+        URL.revokeObjectURL(url);
+        if (pngBlob) resolve(pngBlob);
+        else reject(new Error("No se pudo convertir la imagen"));
+      }, "image/png");
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo leer la imagen"));
+    };
+    img.src = url;
+  });
+}
+
+function ImagenCopyField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [procesando, setProcesando] = useState(false);
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Elegí un archivo de imagen");
+      return;
+    }
+    setProcesando(true);
+    try {
+      const dataUrl = await comprimirImagen(file);
+      onChange(dataUrl);
+    } catch {
+      toast.error("No se pudo procesar la imagen");
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>Imagen (opcional)</Label>
+      {value ? (
+        <div className="relative w-fit">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="" className="max-h-40 rounded-lg border object-contain" />
+          <Button
+            type="button"
+            size="icon"
+            variant="destructive"
+            className="absolute -right-2 -top-2 size-6 rounded-full"
+            onClick={() => onChange("")}
+            aria-label="Quitar imagen"
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-fit gap-1.5"
+          disabled={procesando}
+          onClick={() => inputRef.current?.click()}
+        >
+          <ImageIcon className="size-4" />
+          {procesando ? "Procesando..." : "Subir imagen"}
+        </Button>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  );
+}
 
 function SelectorColorMini({
   value,
@@ -111,6 +243,7 @@ export function CopysManager({
   const [nuevoTitulo, setNuevoTitulo] = useState("");
   const [nuevoContenido, setNuevoContenido] = useState("");
   const [nuevaCategoria, setNuevaCategoria] = useState("");
+  const [nuevaImagen, setNuevaImagen] = useState("");
 
   const [catOpen, setCatOpen] = useState(false);
   const [catEditandoId, setCatEditandoId] = useState<string | null>(null);
@@ -122,9 +255,11 @@ export function CopysManager({
   const [editTitulo, setEditTitulo] = useState("");
   const [editContenido, setEditContenido] = useState("");
   const [editCategoria, setEditCategoria] = useState("");
+  const [editImagen, setEditImagen] = useState("");
 
   const [personalizando, setPersonalizando] = useState<CopyItem | null>(null);
   const [textoPersonalizado, setTextoPersonalizado] = useState("");
+  const [imagenPersonalizada, setImagenPersonalizada] = useState("");
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim();
@@ -135,10 +270,26 @@ export function CopysManager({
     });
   }, [copys, busqueda, categoriaActiva]);
 
-  async function copiar(contenido: string) {
+  async function copiar(contenido: string, imagenUrl?: string | null) {
+    if (imagenUrl) {
+      try {
+        const blobOriginal = await (await fetch(imagenUrl)).blob();
+        const blobPng = blobOriginal.type === "image/png" ? blobOriginal : await blobAPng(blobOriginal);
+        const item = new ClipboardItem({
+          "image/png": blobPng,
+          "text/plain": new Blob([contenido], { type: "text/plain" }),
+        });
+        await navigator.clipboard.write([item]);
+        toast.success("Imagen y mensaje copiados. Pegalo en WhatsApp y volvé a pegar para el texto.");
+        return;
+      } catch {
+        // Si el navegador no soporta copiar imagen + texto juntos, al menos
+        // copiamos el texto para no dejar al usuario sin nada.
+      }
+    }
     try {
       await navigator.clipboard.writeText(contenido);
-      toast.success("Copiado al portapapeles");
+      toast.success(imagenUrl ? "Se copió el mensaje (no se pudo copiar la imagen)" : "Copiado al portapapeles");
     } catch {
       toast.error("No se pudo copiar");
     }
@@ -147,10 +298,11 @@ export function CopysManager({
   function abrirPersonalizar(c: CopyItem) {
     setPersonalizando(c);
     setTextoPersonalizado(c.contenido);
+    setImagenPersonalizada(c.imagenUrl ?? "");
   }
 
   async function copiarPersonalizado() {
-    await copiar(textoPersonalizado);
+    await copiar(textoPersonalizado, imagenPersonalizada);
     setPersonalizando(null);
   }
 
@@ -197,11 +349,13 @@ export function CopysManager({
           titulo: nuevoTitulo,
           contenido: nuevoContenido,
           categoriaId: nuevaCategoria === "NINGUNA" ? "" : nuevaCategoria,
+          imagenUrl: nuevaImagen,
         });
         toast.success("Copy creado");
         setNuevoTitulo("");
         setNuevoContenido("");
         setNuevaCategoria("");
+        setNuevaImagen("");
         setNuevoOpen(false);
         router.refresh();
       } catch (e) {
@@ -215,6 +369,7 @@ export function CopysManager({
     setEditTitulo(c.titulo);
     setEditContenido(c.contenido);
     setEditCategoria(c.categoriaId ?? "NINGUNA");
+    setEditImagen(c.imagenUrl ?? "");
   }
 
   function handleGuardarEdicion() {
@@ -225,6 +380,7 @@ export function CopysManager({
           titulo: editTitulo,
           contenido: editContenido,
           categoriaId: editCategoria === "NINGUNA" ? "" : editCategoria,
+          imagenUrl: editImagen,
         });
         toast.success("Copy actualizado");
         setEditando(null);
@@ -372,6 +528,7 @@ export function CopysManager({
                     placeholder="Escribí el mensaje completo..."
                   />
                 </div>
+                <ImagenCopyField value={nuevaImagen} onChange={setNuevaImagen} />
               </div>
               <DialogFooter>
                 <Button className="h-11 w-full" disabled={pending} onClick={handleCrearCopy}>
@@ -502,6 +659,14 @@ export function CopysManager({
                   </AlertDialog>
                 </div>
               </div>
+              {c.imagenUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.imagenUrl}
+                  alt=""
+                  className="max-h-32 w-fit rounded-lg border object-contain"
+                />
+              )}
               <p
                 className={cn(
                   "text-sm text-muted-foreground whitespace-pre-wrap",
@@ -515,7 +680,7 @@ export function CopysManager({
                   size="sm"
                   variant="outline"
                   className="h-9 rounded-full gap-1.5"
-                  onClick={() => copiar(c.contenido)}
+                  onClick={() => copiar(c.contenido, c.imagenUrl)}
                 >
                   <CopyIcon className="size-4" />
                   Copiar
@@ -573,6 +738,7 @@ export function CopysManager({
                 onChange={(e) => setEditContenido(e.target.value)}
               />
             </div>
+            <ImagenCopyField value={editImagen} onChange={setEditImagen} />
           </div>
           <DialogFooter>
             <Button className="h-11 w-full" disabled={pending} onClick={handleGuardarEdicion}>
@@ -591,11 +757,14 @@ export function CopysManager({
             Cambiá lo que necesites solo para esta vez — el copy original ({personalizando?.titulo})
             no se modifica.
           </p>
-          <Textarea
-            className="min-h-[140px]"
-            value={textoPersonalizado}
-            onChange={(e) => setTextoPersonalizado(e.target.value)}
-          />
+          <div className="flex flex-col gap-3">
+            <Textarea
+              className="min-h-[140px]"
+              value={textoPersonalizado}
+              onChange={(e) => setTextoPersonalizado(e.target.value)}
+            />
+            <ImagenCopyField value={imagenPersonalizada} onChange={setImagenPersonalizada} />
+          </div>
           <DialogFooter>
             <Button className="h-11 w-full gap-1.5" onClick={copiarPersonalizado}>
               <CopyIcon className="size-4" />
