@@ -270,28 +270,29 @@ export function CopysManager({
     });
   }, [copys, busqueda, categoriaActiva]);
 
-  async function copiar(contenido: string, imagenUrl?: string | null) {
-    if (imagenUrl) {
-      try {
-        const blobOriginal = await (await fetch(imagenUrl)).blob();
-        const blobPng = blobOriginal.type === "image/png" ? blobOriginal : await blobAPng(blobOriginal);
-        const item = new ClipboardItem({
-          "image/png": blobPng,
-          "text/plain": new Blob([contenido], { type: "text/plain" }),
-        });
-        await navigator.clipboard.write([item]);
-        toast.success("Imagen y mensaje copiados. Pegalo en WhatsApp y volvé a pegar para el texto.");
-        return;
-      } catch {
-        // Si el navegador no soporta copiar imagen + texto juntos, al menos
-        // copiamos el texto para no dejar al usuario sin nada.
-      }
-    }
+  async function copiar(contenido: string) {
     try {
       await navigator.clipboard.writeText(contenido);
-      toast.success(imagenUrl ? "Se copió el mensaje (no se pudo copiar la imagen)" : "Copiado al portapapeles");
+      toast.success("Mensaje copiado");
     } catch {
       toast.error("No se pudo copiar");
+    }
+  }
+
+  // WhatsApp (como casi cualquier app) al recibir un pegado con imagen
+  // SIEMPRE adjunta la foto y descarta el texto que venga en el mismo
+  // portapapeles: no hay forma de que un solo Ctrl+V deje la foto adjunta
+  // Y el texto como descripción a la vez. Por eso van separados: copiás la
+  // imagen, la pegás (se adjunta y abre el cuadro de descripción), y después
+  // copiás el mensaje y lo pegás ahí.
+  async function copiarImagen(imagenUrl: string) {
+    try {
+      const blobOriginal = await (await fetch(imagenUrl)).blob();
+      const blobPng = blobOriginal.type === "image/png" ? blobOriginal : await blobAPng(blobOriginal);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPng })]);
+      toast.success("Imagen copiada. Pegala en WhatsApp para adjuntarla.");
+    } catch {
+      toast.error("No se pudo copiar la imagen");
     }
   }
 
@@ -302,7 +303,7 @@ export function CopysManager({
   }
 
   async function copiarPersonalizado() {
-    await copiar(textoPersonalizado, imagenPersonalizada);
+    await copiar(textoPersonalizado);
     setPersonalizando(null);
   }
 
@@ -664,7 +665,9 @@ export function CopysManager({
                 <img
                   src={c.imagenUrl}
                   alt=""
-                  className="max-h-32 w-fit rounded-lg border object-contain"
+                  className="max-h-32 w-fit cursor-pointer rounded-lg border object-contain"
+                  onClick={() => copiarImagen(c.imagenUrl!)}
+                  title="Tocar para copiar la imagen"
                 />
               )}
               <p
@@ -675,16 +678,27 @@ export function CopysManager({
               >
                 {c.contenido}
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-9 rounded-full gap-1.5"
-                  onClick={() => copiar(c.contenido, c.imagenUrl)}
+                  onClick={() => copiar(c.contenido)}
                 >
                   <CopyIcon className="size-4" />
                   Copiar
                 </Button>
+                {c.imagenUrl && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 rounded-full gap-1.5"
+                    onClick={() => copiarImagen(c.imagenUrl!)}
+                  >
+                    <ImageIcon className="size-4" />
+                    Copiar imagen
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -764,11 +778,27 @@ export function CopysManager({
               onChange={(e) => setTextoPersonalizado(e.target.value)}
             />
             <ImagenCopyField value={imagenPersonalizada} onChange={setImagenPersonalizada} />
+            {imagenPersonalizada && (
+              <p className="text-xs text-muted-foreground">
+                Copiá primero la imagen y pegala en WhatsApp (se adjunta y abre la descripción);
+                después copiá el mensaje y pegalo ahí.
+              </p>
+            )}
           </div>
           <DialogFooter>
-            <Button className="h-11 w-full gap-1.5" onClick={copiarPersonalizado}>
+            {imagenPersonalizada && (
+              <Button
+                variant="outline"
+                className="h-11 gap-1.5"
+                onClick={() => copiarImagen(imagenPersonalizada)}
+              >
+                <ImageIcon className="size-4" />
+                Copiar imagen
+              </Button>
+            )}
+            <Button className="h-11 flex-1 gap-1.5" onClick={copiarPersonalizado}>
               <CopyIcon className="size-4" />
-              Copiar
+              Copiar mensaje
             </Button>
           </DialogFooter>
         </DialogContent>
