@@ -83,7 +83,6 @@ export async function crearPasajeroConServicios(input: unknown) {
           empleador: vacioANulo(data.pasajero.empleador),
           estado: "ACTIVO",
           tramos: data.tramos,
-          grupoTramosId: principal.id,
           montoAbonado: data.pasajero.montoAbonado ?? 0,
           estadoPago: (data.pasajero.estadoPago ?? "PENDIENTE") as never,
           metodoPago: vacioANulo(data.pasajero.metodoPago),

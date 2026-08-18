@@ -247,8 +247,9 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
               placeholder="0"
             />
             <p className="text-xs text-muted-foreground">
-              Los tramos son compartidos entre todos los días de viaje del pasajero (y entre los
-              pasajeros de abajo, si agregás alguno).
+              Se comparten entre todos los días de viaje de este pasajero. Si agregás otros
+              pasajeros abajo, cada uno arranca con esta misma cantidad pero después sus tramos
+              corren por separado.
             </p>
           </div>
 
@@ -345,8 +346,9 @@ export function PasajeroFormNuevo({ barrios }: { barrios: Barrio[] }) {
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground">
-                  Van a compartir el WhatsApp, email y tramos con {pasajero.nombre || "este contacto"}.
-                  Elegí sus días de viaje abajo, en "Días de viaje".
+                  Van a compartir el WhatsApp y el email con {pasajero.nombre || "este contacto"},
+                  pero cada uno tiene sus propios tramos. Elegí sus días de viaje abajo, en "Días
+                  de viaje".
                 </p>
               </div>
             )}
